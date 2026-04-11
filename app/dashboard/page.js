@@ -132,6 +132,20 @@ export default function DashboardPage() {
     if (res.success) { showToast(`Advance ${status}`); loadPage(page); }
   };
 
+  const submitEmployee = async (e) => {
+    e.preventDefault();
+    const res = await api('/api/employees', { method: 'POST', body: JSON.stringify(modalData) });
+    if (res.success) { showToast('Team member added successfully'); setModalType(null); loadPage(page); }
+    else showToast(res.error, 'error');
+  };
+
+  const deleteEmployee = async (id, name) => {
+    if (!confirm(`Are you sure you want to delete ${name}? This action cannot be undone.`)) return;
+    const res = await api(`/api/employees?id=${id}`, { method: 'DELETE' });
+    if (res.success) { showToast(`${name} deleted`); loadPage(page); }
+    else showToast(res.error, 'error');
+  };
+
   if (!user) return <div className="loading"><div className="spinner"></div></div>;
   const isAdmin = user.role === 'admin';
 
@@ -297,9 +311,35 @@ export default function DashboardPage() {
           </div>
         </>;
         
-      // Keep Team and Attendance basic rendering the same
-      case 'team': return <div className="card table-wrap"><table><thead><tr><th>Name</th><th>Role</th><th>Salary</th></tr></thead><tbody>{employees.filter(e=>e.role!=='admin').map(e=><tr key={e.id}><td>{e.name}</td><td>{e.employeeRole}</td><td>{fmtCurrency(e.baseSalary)}</td></tr>)}</tbody></table></div>;
-      case 'attendance': return <div className="card table-wrap"><table><thead><tr><th>Name</th><th>Date</th><th>In</th><th>Out</th></tr></thead><tbody>{attendance.slice(0, 50).map(a=><tr key={a.id}><td>{a.employee?.name}</td><td>{a.date}</td><td>{fmtTime(a.checkIn)}</td><td>{fmtTime(a.checkOut)}</td></tr>)}</tbody></table></div>;
+      // Team / Employees
+      case 'team': 
+        return <>
+          <div className="page-header">
+            <div><h1>Team Members</h1></div>
+            {isAdmin && <button className="btn-primary" onClick={() => { setModalData({role:'employee', employeeRole:'normal', baseSalary:0}); setModalType('employee'); }}>Add New Member</button>}
+          </div>
+          <div className="card table-wrap" style={{ overflowX: 'auto' }}>
+            <table style={{ minWidth: '600px' }}>
+              <thead><tr><th>Name</th><th>Role</th><th>Salary</th>{isAdmin && <th>Actions</th>}</tr></thead>
+              <tbody>{employees.map(e => (
+                <tr key={e.id}>
+                  <td>
+                    <div><strong>{e.name}</strong></div>
+                    <div style={{fontSize:'0.8em', color:'var(--text-muted)'}}>{e.email}</div>
+                  </td>
+                  <td><span className={`badge badge-${e.employeeRole === 'admin' ? 'active' : 'assigned'}`}>{e.employeeRole}</span></td>
+                  <td>{fmtCurrency(e.baseSalary)}</td>
+                  {isAdmin && <td>
+                    {e.id !== user.id && <button className="btn-danger btn-sm" onClick={() => deleteEmployee(e.id, e.name)}>Delete</button>}
+                  </td>}
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+        </>;
+        
+      case 'attendance': 
+        return <div className="card table-wrap" style={{ overflowX: 'auto' }}><table style={{ minWidth: '500px' }}><thead><tr><th>Name</th><th>Date</th><th>In</th><th>Out</th></tr></thead><tbody>{attendance.slice(0, 50).map(a=><tr key={a.id}><td>{a.employee?.name}</td><td>{a.date}</td><td>{fmtTime(a.checkIn)}</td><td>{fmtTime(a.checkOut)}</td></tr>)}</tbody></table></div>;
       
       default: return <div>Select an option</div>;
     }
@@ -369,6 +409,29 @@ export default function DashboardPage() {
                 <div className="form-group"><label className="form-label">Amount (₹)</label><input type="number" required className="form-input" value={modalData.amount||''} onChange={e=>setModalData({...modalData, amount: e.target.value})} /></div>
                 <div className="form-group"><label className="form-label">Reason</label><textarea required className="form-input" value={modalData.reason||''} onChange={e=>setModalData({...modalData, reason: e.target.value})} /></div>
                 <button type="submit" className="btn-primary" style={{width:'100%'}}>Request Advance</button>
+              </form>}
+
+              {/* EMPLOYEE MODAL */}
+              {modalType === 'employee' && <form onSubmit={submitEmployee}>
+                <div className="form-group"><label className="form-label">Full Name</label><input type="text" required className="form-input" value={modalData.name||''} onChange={e=>setModalData({...modalData, name: e.target.value})} /></div>
+                <div className="form-group"><label className="form-label">Email</label><input type="email" required className="form-input" value={modalData.email||''} onChange={e=>setModalData({...modalData, email: e.target.value})} /></div>
+                <div className="form-group"><label className="form-label">Password</label><input type="password" required className="form-input" value={modalData.password||''} onChange={e=>setModalData({...modalData, password: e.target.value})} /></div>
+                <div className="form-group"><label className="form-label">Phone</label><input type="text" className="form-input" value={modalData.phone||''} onChange={e=>setModalData({...modalData, phone: e.target.value})} /></div>
+                <div className="form-group"><label className="form-label">System Role</label>
+                  <select className="form-input" value={modalData.role||'employee'} onChange={e=>setModalData({...modalData, role: e.target.value})}>
+                    <option value="employee">Standard User</option>
+                    <option value="admin">Administrator</option>
+                  </select>
+                </div>
+                <div className="form-group"><label className="form-label">Job Role</label>
+                  <select className="form-input" value={modalData.employeeRole||'normal'} onChange={e=>setModalData({...modalData, employeeRole: e.target.value})}>
+                    <option value="normal">Normal Staff</option>
+                    <option value="rider">Rider / Driver</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </div>
+                <div className="form-group"><label className="form-label">Base Salary (₹)</label><input type="number" required className="form-input" value={modalData.baseSalary||''} onChange={e=>setModalData({...modalData, baseSalary: Number(e.target.value)})} /></div>
+                <button type="submit" className="btn-primary" style={{width:'100%'}}>Add Team Member</button>
               </form>}
             </div>
           </div>
