@@ -50,6 +50,7 @@ export default function DashboardPage() {
   
   // Filters
   const [filterDate, setFilterDate] = useState('');
+  const [filterName, setFilterName] = useState('');
   
   // Modals & Forms
   const [toast, setToast] = useState(null);
@@ -186,7 +187,8 @@ export default function DashboardPage() {
 
   /* UI Renderers */
   const renderContent = () => {
-    if (loading) return <div className="loading"><div className="spinner"></div></div>;
+    // We do not return standard block loading so the user doesn't see a flashing spinner on every tab switch
+    if (loading && page === 'home' && !data) return <div className="loading"><div className="spinner"></div></div>;
 
     switch (page) {
       case 'home':
@@ -281,13 +283,16 @@ export default function DashboardPage() {
 
       case 'rides':
         return <>
-          <div className="page-header">
-            <div><h1>Ride Tracking (Proof)</h1></div>
-            <input type="date" className="filter-input" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} />
-          </div>
+          <div className="page-header" style={{ marginBottom: 10 }}><div><h1>Ride Tracking (Proof)</h1></div></div>
+          {isAdmin && (
+            <div className="filter-toolbar">
+              <input type="text" placeholder="Search by name..." className="filter-input" value={filterName} onChange={(e) => setFilterName(e.target.value)} />
+              <input type="date" className="filter-input" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} />
+            </div>
+          )}
           <div className="card table-wrap" style={{overflowX: 'auto'}}>
             <table style={{minWidth:'700px'}}><thead><tr>{isAdmin&&<th>Rider</th>}<th>Date</th><th>Distance</th><th>Start Proof</th><th>End Proof</th><th>Status</th></tr></thead>
-              <tbody>{rides.filter(r => filterDate ? r.date === filterDate : true).map(r => (
+              <tbody>{rides.filter(r => (filterDate ? r.date === filterDate : true) && (filterName && isAdmin ? r.rider?.name?.toLowerCase().includes(filterName.toLowerCase()) : true)).map(r => (
                 <tr key={r.id}>{isAdmin&&<td><strong>{r.rider?.name}</strong></td>}<td>{fmtDate(r.date)}</td>
                   <td>{r.distance ? `${r.distance} KM` : '—'}</td>
                   <td>{r.startPhoto ? <img src={r.startPhoto} style={{width: 50, height: 30, objectFit:'cover', borderRadius:4, cursor:'zoom-in'}} onClick={()=>window.open(r.startPhoto)} alt=""/> : 'No photo'}</td>
@@ -392,13 +397,16 @@ export default function DashboardPage() {
         
       case 'attendance': 
         return <>
-          <div className="page-header">
-            <div><h1>Attendance Logs</h1></div>
-            <input type="date" className="filter-input" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} />
-          </div>
+          <div className="page-header" style={{ marginBottom: 10 }}><div><h1>Attendance Logs</h1></div></div>
+          {isAdmin && (
+            <div className="filter-toolbar">
+              <input type="text" placeholder="Search by name..." className="filter-input" value={filterName} onChange={(e) => setFilterName(e.target.value)} />
+              <input type="date" className="filter-input" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} />
+            </div>
+          )}
           <div className="card table-wrap" style={{ overflowX: 'auto' }}>
             <table style={{ minWidth: '500px' }}><thead><tr><th>Name</th><th>Date</th><th>In</th><th>Out</th></tr></thead>
-            <tbody>{attendance.filter(a => filterDate ? a.date === filterDate : true).slice(0, 200).map(a=><tr key={a.id}><td>{a.employee?.name}</td><td>{a.date}</td><td>{fmtTime(a.checkIn)}</td><td>{fmtTime(a.checkOut)}</td></tr>)}</tbody></table>
+            <tbody>{attendance.filter(a => (filterDate ? a.date === filterDate : true) && (filterName && isAdmin ? a.employee?.name?.toLowerCase().includes(filterName.toLowerCase()) : true)).slice(0, 200).map(a=><tr key={a.id}><td>{a.employee?.name}</td><td>{a.date}</td><td>{fmtTime(a.checkIn)}</td><td>{fmtTime(a.checkOut)}</td></tr>)}</tbody></table>
           </div>
         </>;
       
@@ -520,8 +528,7 @@ export default function DashboardPage() {
                 </div>
                 <div className="form-group"><label className="form-label">Job Role</label>
                   <select className="form-input" value={modalData.employeeRole||'normal'} onChange={e=>setModalData({...modalData, employeeRole: e.target.value})}>
-                    <option value="normal">Normal Staff</option>
-                    <option value="rider">Rider / Driver</option>
+                    <option value="normal">Standard Staff</option>
                     <option value="admin">Admin</option>
                   </select>
                 </div>
