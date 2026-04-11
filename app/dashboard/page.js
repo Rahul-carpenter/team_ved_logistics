@@ -46,6 +46,10 @@ export default function DashboardPage() {
   const [rides, setRides] = useState([]);
   const [salaryPayments, setSalaryPayments] = useState([]);
   const [advances, setAdvances] = useState([]);
+  const [expenses, setExpenses] = useState([]);
+  
+  // Filters
+  const [filterDate, setFilterDate] = useState('');
   
   // Modals & Forms
   const [toast, setToast] = useState(null);
@@ -70,6 +74,7 @@ export default function DashboardPage() {
       else if (p === 'rides') setRides((await api('/api/rides')).rides || []);
       else if (p === 'salary') setSalaryPayments((await api('/api/salary')).payments || []);
       else if (p === 'advances') setAdvances((await api('/api/advances')).advances || []);
+      else if (p === 'expenses') setExpenses((await api('/api/expenses')).expenses || []);
     } catch (err) {
       console.error(err);
     }
@@ -132,6 +137,25 @@ export default function DashboardPage() {
     if (res.success) { showToast(`Advance ${status}`); loadPage(page); }
   };
 
+  const updateExpenseStatus = async (id, status) => {
+    const res = await api('/api/expenses', { method: 'PUT', body: JSON.stringify({ id, status }) });
+    if (res.success) { showToast(`Expense ${status}`); loadPage(page); }
+  };
+
+  const submitExpense = async (e) => {
+    e.preventDefault();
+    const res = await api('/api/expenses', { method: 'POST', body: JSON.stringify(modalData) });
+    if (res.success) { showToast('Expense submitted'); setModalType(null); loadPage(page); }
+    else showToast(res.error, 'error');
+  };
+
+  const submitSalary = async (e) => {
+    e.preventDefault();
+    const res = await api('/api/salary', { method: 'POST', body: JSON.stringify(modalData) });
+    if (res.success) { showToast(`Salary saved! Auto-deducted ${res.deductedAdvances} advances.`); setModalType(null); loadPage(page); }
+    else showToast(res.error, 'error');
+  };
+
   const submitEmployee = async (e) => {
     e.preventDefault();
     const res = await api('/api/employees', { method: 'POST', body: JSON.stringify(modalData) });
@@ -152,12 +176,12 @@ export default function DashboardPage() {
   const navSections = isAdmin ? [
     { section: 'Overview', items: [{ id: 'home', label: 'Dashboard', icon: Icons.dashboard }] },
     { section: 'Team Logs', items: [{ id: 'team', label: 'Employees', icon: Icons.team }, { id: 'attendance', label: 'Attendance', icon: Icons.attendance }, { id: 'daily_logs', label: 'Daily Work Logs', icon: Icons.logs }] },
-    { section: 'Operations', items: [{ id: 'rides', label: 'Ride Tracking', icon: Icons.rides }] },
+    { section: 'Operations', items: [{ id: 'rides', label: 'Ride Tracking', icon: Icons.rides }, { id: 'expenses', label: 'Expenses', icon: Icons.logs }] },
     { section: 'Finance', items: [{ id: 'salary', label: 'Salaries', icon: Icons.salary }, { id: 'advances', label: 'Advances', icon: Icons.advances }] },
   ] : [
     { section: 'Overview', items: [{ id: 'home', label: 'My Dashboard', icon: Icons.dashboard }] },
-    { section: 'My Logs', items: [{ id: 'daily_logs', label: 'My Work Logs', icon: Icons.logs }, ...(user.employeeRole === 'rider' ? [{ id: 'rides', label: 'My Rides', icon: Icons.rides }] : [])] },
-    { section: 'Finance', items: [{ id: 'salary', label: 'My Salary', icon: Icons.salary }, { id: 'advances', label: 'My Advances', icon: Icons.advances }] },
+    { section: 'My Logs', items: [{ id: 'daily_logs', label: 'My Work Logs', icon: Icons.logs }, { id: 'rides', label: 'My Rides', icon: Icons.rides }] },
+    { section: 'Finance', items: [{ id: 'salary', label: 'My Salary', icon: Icons.salary }, { id: 'advances', label: 'My Advances', icon: Icons.advances }, { id: 'expenses', label: 'My Expenses', icon: Icons.logs }] },
   ];
 
   /* UI Renderers */
@@ -214,18 +238,16 @@ export default function DashboardPage() {
               </div>
 
               {/* Ride Tracking */}
-              {user.employeeRole === 'rider' && (
-                <div className="card" style={{textAlign: 'center'}}>
-                  <h3>Ride Tracking</h3>
-                  <div style={{marginTop: 15}}>
-                    {activeRide ? (
-                       <button className="btn btn-danger" onClick={() => { setModalData({type:'end'}); setModalType('ride'); }}>End Ride (Upload Speedo)</button>
-                    ) : (
-                       <button className="btn btn-primary" onClick={() => { setModalData({type:'start'}); setModalType('ride'); }}>Start Ride (Upload Speedo)</button>
-                    )}
-                  </div>
+              <div className="card" style={{textAlign: 'center'}}>
+                <h3>Ride Tracking</h3>
+                <div style={{marginTop: 15}}>
+                  {activeRide ? (
+                     <button className="btn btn-danger" onClick={() => { setModalData({type:'end'}); setModalType('ride'); }}>End Ride (Upload Speedo)</button>
+                  ) : (
+                     <button className="btn btn-primary" onClick={() => { setModalData({type:'start'}); setModalType('ride'); }}>Start Ride (Upload Speedo)</button>
+                  )}
                 </div>
-              )}
+              </div>
 
               {/* Work Log */}
               <div className="card" style={{textAlign: 'center'}}>
@@ -259,10 +281,13 @@ export default function DashboardPage() {
 
       case 'rides':
         return <>
-          <div className="page-header"><div><h1>Ride Tracking (Proof)</h1></div></div>
-          <div className="card table-wrap">
-            <table><thead><tr>{isAdmin&&<th>Rider</th>}<th>Date</th><th>Distance</th><th>Start Proof</th><th>End Proof</th><th>Status</th></tr></thead>
-              <tbody>{rides.map(r => (
+          <div className="page-header">
+            <div><h1>Ride Tracking (Proof)</h1></div>
+            <input type="date" className="filter-input" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} />
+          </div>
+          <div className="card table-wrap" style={{overflowX: 'auto'}}>
+            <table style={{minWidth:'700px'}}><thead><tr>{isAdmin&&<th>Rider</th>}<th>Date</th><th>Distance</th><th>Start Proof</th><th>End Proof</th><th>Status</th></tr></thead>
+              <tbody>{rides.filter(r => filterDate ? r.date === filterDate : true).map(r => (
                 <tr key={r.id}>{isAdmin&&<td><strong>{r.rider?.name}</strong></td>}<td>{fmtDate(r.date)}</td>
                   <td>{r.distance ? `${r.distance} KM` : '—'}</td>
                   <td>{r.startPhoto ? <img src={r.startPhoto} style={{width: 50, height: 30, objectFit:'cover', borderRadius:4, cursor:'zoom-in'}} onClick={()=>window.open(r.startPhoto)} alt=""/> : 'No photo'}</td>
@@ -280,8 +305,8 @@ export default function DashboardPage() {
             <div><h1>Advances & Requests</h1></div>
             {!isAdmin && <button className="btn-primary" onClick={() => {setModalData({}); setModalType('advance')}}>Request Advance</button>}
           </div>
-          <div className="card table-wrap">
-            <table><thead><tr>{isAdmin&&<th>Employee</th>}<th>Date</th><th>Amount</th><th>Reason</th><th>Status</th>{isAdmin&&<th>Actions</th>}</tr></thead>
+          <div className="card table-wrap" style={{overflowX: 'auto'}}>
+            <table style={{minWidth:'700px'}}><thead><tr>{isAdmin&&<th>Employee</th>}<th>Date</th><th>Amount</th><th>Reason</th><th>Status</th>{isAdmin&&<th>Actions</th>}</tr></thead>
               <tbody>{advances.map(a => (
                 <tr key={a.id}>{isAdmin&&<td><strong>{a.employee?.name}</strong></td>}<td>{fmtDate(a.requestDate)}</td>
                   <td>{fmtCurrency(a.amount)}</td><td>{a.reason}</td>
@@ -296,15 +321,42 @@ export default function DashboardPage() {
           </div>
         </>;
         
+      case 'expenses':
+        return <>
+          <div className="page-header">
+            <div><h1>Expenses</h1></div>
+            {!isAdmin && <button className="btn-primary" onClick={() => {setModalData({type:'fuel'}); setModalType('expense')}}>Add Expense</button>}
+          </div>
+          <div className="card table-wrap" style={{overflowX: 'auto'}}>
+            <table style={{minWidth:'700px'}}><thead><tr>{isAdmin&&<th>Employee</th>}<th>Date</th><th>Type</th><th>Amount</th><th>Description</th><th>Status</th>{isAdmin&&<th>Actions</th>}</tr></thead>
+              <tbody>{expenses.map(e => (
+                <tr key={e.id}>{isAdmin&&<td><strong>{e.employee?.name}</strong></td>}<td>{fmtDate(e.requestDate)}</td>
+                  <td><span style={{textTransform:'capitalize'}}>{e.type}</span></td>
+                  <td>{fmtCurrency(e.amount)}</td><td>{e.description}</td>
+                  <td><span className={`badge badge-${e.status}`}>{e.status}</span></td>
+                  {isAdmin && <td>
+                    {e.status === 'pending' && <><button className="btn-primary btn-sm" onClick={()=>updateExpenseStatus(e.id, 'approved')} style={{marginRight:5}}>Approve</button>
+                    <button className="btn-danger btn-sm" onClick={()=>updateExpenseStatus(e.id, 'rejected')}>Reject</button></>}
+                  </td>}
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+        </>;
+        
       case 'salary':
         return <>
-          <div className="page-header"><div><h1>Salary & Deductions</h1></div></div>
-          <div className="card table-wrap">
-            <table><thead><tr>{isAdmin&&<th>Employee</th>}<th>Month</th><th>Gross Salary</th><th>Deductions (Advances)</th><th>Net Paid</th></tr></thead>
+          <div className="page-header">
+            <div><h1>Salary & Deductions</h1></div>
+            {isAdmin && <button className="btn-primary" onClick={() => { setModalData({ month: new Date().toISOString().slice(0, 7) }); setModalType('salary'); }}>Pay Salary</button>}
+          </div>
+          <div className="card table-wrap" style={{overflowX: 'auto'}}>
+            <table style={{minWidth:'700px'}}><thead><tr>{isAdmin&&<th>Employee</th>}<th>Month</th><th>Gross Salary</th><th>Deductions</th><th>Net Paid</th><th>Info</th></tr></thead>
               <tbody>{salaryPayments.map(p => (
                 <tr key={p.id}>{isAdmin&&<td><strong>{p.employee?.name}</strong></td>}<td>{p.month}</td>
                   <td>{fmtCurrency(p.amount)}</td><td style={{color:'var(--rose)'}}>-{fmtCurrency(p.deductions)}</td>
                   <td style={{color:'var(--emerald)', fontWeight:'bold'}}>{fmtCurrency(p.netAmount)}</td>
+                  <td style={{fontSize:'0.8rem', color:'var(--text-muted)'}}>{p.note}</td>
                 </tr>
               ))}</tbody>
             </table>
@@ -339,7 +391,16 @@ export default function DashboardPage() {
         </>;
         
       case 'attendance': 
-        return <div className="card table-wrap" style={{ overflowX: 'auto' }}><table style={{ minWidth: '500px' }}><thead><tr><th>Name</th><th>Date</th><th>In</th><th>Out</th></tr></thead><tbody>{attendance.slice(0, 50).map(a=><tr key={a.id}><td>{a.employee?.name}</td><td>{a.date}</td><td>{fmtTime(a.checkIn)}</td><td>{fmtTime(a.checkOut)}</td></tr>)}</tbody></table></div>;
+        return <>
+          <div className="page-header">
+            <div><h1>Attendance Logs</h1></div>
+            <input type="date" className="filter-input" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} />
+          </div>
+          <div className="card table-wrap" style={{ overflowX: 'auto' }}>
+            <table style={{ minWidth: '500px' }}><thead><tr><th>Name</th><th>Date</th><th>In</th><th>Out</th></tr></thead>
+            <tbody>{attendance.filter(a => filterDate ? a.date === filterDate : true).slice(0, 200).map(a=><tr key={a.id}><td>{a.employee?.name}</td><td>{a.date}</td><td>{fmtTime(a.checkIn)}</td><td>{fmtTime(a.checkOut)}</td></tr>)}</tbody></table>
+          </div>
+        </>;
       
       default: return <div>Select an option</div>;
     }
@@ -409,6 +470,40 @@ export default function DashboardPage() {
                 <div className="form-group"><label className="form-label">Amount (₹)</label><input type="number" required className="form-input" value={modalData.amount||''} onChange={e=>setModalData({...modalData, amount: e.target.value})} /></div>
                 <div className="form-group"><label className="form-label">Reason</label><textarea required className="form-input" value={modalData.reason||''} onChange={e=>setModalData({...modalData, reason: e.target.value})} /></div>
                 <button type="submit" className="btn-primary" style={{width:'100%'}}>Request Advance</button>
+              </form>}
+
+              {/* EXPENSE MODAL */}
+              {modalType === 'expense' && <form onSubmit={submitExpense}>
+                <div className="form-group"><label className="form-label">Expense Type</label>
+                  <select className="form-input" value={modalData.type||'fuel'} onChange={e=>setModalData({...modalData, type: e.target.value})}>
+                    <option value="fuel">Fuel / Petrol</option>
+                    <option value="toll">Toll Tax</option>
+                    <option value="maintenance">Maintenance</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+                <div className="form-group"><label className="form-label">Amount (₹)</label><input type="number" required className="form-input" value={modalData.amount||''} onChange={e=>setModalData({...modalData, amount: Number(e.target.value)})} /></div>
+                <div className="form-group"><label className="form-label">Description</label><textarea className="form-input" value={modalData.description||''} onChange={e=>setModalData({...modalData, description: e.target.value})} /></div>
+                <button type="submit" className="btn-primary" style={{width:'100%'}}>Submit Expense</button>
+              </form>}
+
+              {/* SALARY MODAL */}
+              {modalType === 'salary' && <form onSubmit={submitSalary}>
+                <div className="form-group"><label className="form-label">Select Employee</label>
+                  <select className="form-input" required value={modalData.employeeId||''} onChange={e=>{
+                    const emp = employees.find(x => x.id === e.target.value);
+                    setModalData({...modalData, employeeId: e.target.value, amount: emp ? emp.baseSalary : ''});
+                  }}>
+                    <option value="">-- Choose --</option>
+                    {employees.filter(e => e.role !== 'admin').map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                  </select>
+                </div>
+                <div className="form-group"><label className="form-label">Payment Month (YYYY-MM)</label><input type="month" required className="form-input" value={modalData.month||''} onChange={e=>setModalData({...modalData, month: e.target.value})} /></div>
+                <div className="form-group"><label className="form-label">Gross Amount (₹)</label><input type="number" required className="form-input" value={modalData.amount||''} onChange={e=>setModalData({...modalData, amount: Number(e.target.value)})} /></div>
+                <p style={{fontSize:'0.85rem', color:'var(--text-muted)', marginBottom: 20}}>Note: Any approved advances will be automatically deducted from this gross amount.</p>
+                <div className="form-group"><label className="form-label">Manual Addt'l Deductions (Optional)</label><input type="number" className="form-input" value={modalData.deductions||''} onChange={e=>setModalData({...modalData, deductions: Number(e.target.value)})} /></div>
+                <div className="form-group"><label className="form-label">Note</label><input type="text" className="form-input" value={modalData.note||''} onChange={e=>setModalData({...modalData, note: e.target.value})} /></div>
+                <button type="submit" className="btn-primary" style={{width:'100%'}}>Post Salary</button>
               </form>}
 
               {/* EMPLOYEE MODAL */}
