@@ -28,8 +28,8 @@ model Employee {
   updatedAt     DateTime @updatedAt
 
   attendance     Attendance[]
-  parcels        Parcel[]       @relation("AssignedRider")
   rides          Ride[]
+  dailyLogs      DailyLog[]
   advances       Advance[]
   expenses       Expense[]
   salaryPayments SalaryPayment[]
@@ -52,38 +52,37 @@ model Attendance {
   @@index([date])
 }
 
-model Parcel {
-  id              String   @id @default(cuid())
-  parcelId        String   @unique
-  customerName    String
-  pickupAddress   String
-  deliveryAddress String
-  parcelType      String   @default("Document")
-  weight          String   @default("0")
-  assignedRider   String
-  status          String   @default("assigned") // assigned | picked_up | in_transit | delivered
-  note            String   @default("")
-  statusHistory   Json     @default("[]")
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+// Daily work log — simple counts per employee per day
+model DailyLog {
+  id         String   @id @default(cuid())
+  employeeId String
+  date       String
+  delivered  Int      @default(0)   // items delivered today
+  pickedUp   Int      @default(0)   // items picked up today
+  store      Int      @default(0)   // items in store/warehouse
+  note       String   @default("")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  rider Employee @relation("AssignedRider", fields: [assignedRider], references: [id], onDelete: Cascade)
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
-  @@index([assignedRider])
-  @@index([status])
+  @@unique([employeeId, date])
+  @@index([employeeId])
+  @@index([date])
 }
 
+// Ride tracking with speedometer photo proof
 model Ride {
   id         String   @id @default(cuid())
   riderId    String
   date       String
   startKm    Int
-  endKm      Int
-  distance   Int
-  startImage String?
-  endImage   String?
+  endKm      Int      @default(0)
+  distance   Int      @default(0)
+  startPhoto String?  // base64 or URL of speedometer at start
+  endPhoto   String?  // base64 or URL of speedometer at end
   fuelCost   Float    @default(0)
-  status     String   @default("completed")
+  status     String   @default("started") // started | completed
   note       String   @default("")
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -91,8 +90,10 @@ model Ride {
   rider Employee @relation(fields: [riderId], references: [id], onDelete: Cascade)
 
   @@index([riderId])
+  @@index([date])
 }
 
+// Salary advance requests
 model Advance {
   id           String   @id @default(cuid())
   employeeId   String
@@ -101,6 +102,7 @@ model Advance {
   status       String   @default("pending") // pending | approved | rejected
   requestDate  DateTime @default(now())
   approvedDate DateTime?
+  approvedBy   String   @default("")
   note         String   @default("")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -132,6 +134,8 @@ model SalaryPayment {
   id          String   @id @default(cuid())
   employeeId  String
   amount      Float
+  deductions  Float    @default(0)  // total advance deductions
+  netAmount   Float    @default(0)  // amount after deductions
   paymentDate String
   month       String
   note        String   @default("")

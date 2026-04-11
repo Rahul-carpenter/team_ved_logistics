@@ -35,10 +35,14 @@ export async function POST(request) {
       return errorResponse('Employee, amount, and month are required');
     }
 
+    const netAmount = Number(data.amount) - Number(data.deductions || 0);
+
     const payment = await prisma.salaryPayment.create({
       data: {
         employeeId: data.employeeId,
-        amount: data.amount,
+        amount: Number(data.amount),
+        deductions: Number(data.deductions || 0),
+        netAmount,
         paymentDate: data.paymentDate || new Date().toISOString().split('T')[0],
         month: data.month,
         note: data.note || '',

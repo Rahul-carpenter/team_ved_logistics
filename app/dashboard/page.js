@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 
@@ -24,11 +24,11 @@ const getGreeting = () => { const h = new Date().getHours(); return h < 12 ? 'Mo
 const Icons = {
   dashboard: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>,
   team: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
-  parcels: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27,6.96 12,12.01 20.73,6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>,
+  logs: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>,
+  rides: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>,
   attendance: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
   salary: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>,
-  expenses: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>,
-  settings: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.26.6.83 1 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
+  advances: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>,
 };
 
 export default function DashboardPage() {
@@ -39,14 +39,20 @@ export default function DashboardPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Module data for sub-pages
+  // Module data
   const [employees, setEmployees] = useState([]);
   const [attendance, setAttendance] = useState([]);
-  const [parcels, setParcels] = useState([]);
+  const [dailyLogs, setDailyLogs] = useState([]);
+  const [rides, setRides] = useState([]);
   const [salaryPayments, setSalaryPayments] = useState([]);
-  const [expenses, setExpenses] = useState([]);
+  const [advances, setAdvances] = useState([]);
+  
+  // Modals & Forms
+  const [toast, setToast] = useState(null);
+  const [modalType, setModalType] = useState(null);
+  const [modalData, setModalData] = useState({});
+  const fileInputRef = useRef(null);
 
-  // Auth check
   useEffect(() => {
     const token = localStorage.getItem('ved_token');
     const u = localStorage.getItem('ved_user');
@@ -54,351 +60,322 @@ export default function DashboardPage() {
     try { setUser(JSON.parse(u)); } catch { router.replace('/'); }
   }, [router]);
 
-  // Load page data
   const loadPage = useCallback(async (p) => {
     setLoading(true);
     try {
-      if (p === 'home') {
-        const d = await api('/api/dashboard');
-        setData(d);
-      } else if (p === 'team') {
-        const d = await api('/api/employees');
-        setEmployees(d.employees || []);
-      } else if (p === 'attendance') {
-        const d = await api('/api/attendance');
-        setAttendance(d.attendance || []);
-      } else if (p === 'parcels') {
-        const d = await api('/api/parcels');
-        setParcels(d.parcels || []);
-      } else if (p === 'salary') {
-        const d = await api('/api/salary');
-        setSalaryPayments(d.payments || []);
-      } else if (p === 'expenses') {
-        const d = await api('/api/expenses');
-        setExpenses(d.expenses || []);
-      }
+      if (p === 'home') setData(await api('/api/dashboard'));
+      else if (p === 'team') setEmployees((await api('/api/employees')).employees || []);
+      else if (p === 'attendance') setAttendance((await api('/api/attendance')).attendance || []);
+      else if (p === 'daily_logs') setDailyLogs((await api('/api/daily_logs')).logs || []);
+      else if (p === 'rides') setRides((await api('/api/rides')).rides || []);
+      else if (p === 'salary') setSalaryPayments((await api('/api/salary')).payments || []);
+      else if (p === 'advances') setAdvances((await api('/api/advances')).advances || []);
     } catch (err) {
-      console.error('Load error:', err);
+      console.error(err);
     }
     setLoading(false);
   }, []);
 
-  useEffect(() => {
-    if (user) loadPage(page);
-  }, [user, page, loadPage]);
+  useEffect(() => { if (user) loadPage(page); }, [user, page, loadPage]);
 
   const navigate = (p) => { setPage(p); setSidebarOpen(false); };
+  const logout = () => { localStorage.clear(); router.replace('/'); };
+  const showToast = (msg, type='success') => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000); };
 
-  const logout = () => {
-    localStorage.removeItem('ved_token');
-    localStorage.removeItem('ved_user');
-    router.replace('/');
+  // Actions
+  const handleCheckInOut = async (isOut) => {
+    const res = await api('/api/attendance', { method: isOut ? 'PUT' : 'POST', body: JSON.stringify(isOut ? { checkOut: true } : {}) });
+    if (res.success) { showToast(`Checked ${isOut ? 'out' : 'in'} successfully`); loadPage('home'); }
+    else showToast(res.error, 'error');
   };
 
-  // ── Check-in / Check-out ──
-  const handleCheckIn = async () => {
-    await api('/api/attendance', { method: 'POST', body: JSON.stringify({}) });
-    loadPage('home');
+  const handlePhotoUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => setModalData(prev => ({ ...prev, photo: reader.result }));
+      reader.readAsDataURL(file);
+    }
   };
 
-  const handleCheckOut = async () => {
-    await api('/api/attendance', { method: 'PUT', body: JSON.stringify({ checkOut: true }) });
-    loadPage('home');
+  const submitRide = async (e) => {
+    e.preventDefault();
+    if (!modalData.photo) return showToast('Photo proof required', 'error');
+    if (modalData.type === 'start' && !modalData.startKm) return showToast('Start KM required', 'error');
+    if (modalData.type === 'end' && !modalData.endKm) return showToast('End KM required', 'error');
+
+    const payload = modalData.type === 'start' 
+      ? { startKm: parseInt(modalData.startKm), startPhoto: modalData.photo }
+      : { id: data.activeRide.id, endKm: parseInt(modalData.endKm), endPhoto: modalData.photo };
+      
+    const res = await api('/api/rides', { method: 'POST', body: JSON.stringify(payload) });
+    if (res.success) { showToast(`Ride ${modalData.type === 'start'?'started':'completed'}`); setModalType(null); loadPage('home'); }
+    else showToast(res.error, 'error');
   };
 
-  // ── Update parcel status ──
-  const updateParcelStatus = async (id, newStatus) => {
-    await api('/api/parcels', { method: 'PUT', body: JSON.stringify({ id, status: newStatus }) });
-    loadPage(page);
+  const submitDailyLog = async (e) => {
+    e.preventDefault();
+    const res = await api('/api/daily_logs', { method: 'POST', body: JSON.stringify(modalData) });
+    if (res.success) { showToast('Daily log saved'); setModalType(null); loadPage(page); }
+    else showToast(res.error, 'error');
+  };
+
+  const submitAdvance = async (e) => {
+    e.preventDefault();
+    const res = await api('/api/advances', { method: 'POST', body: JSON.stringify(modalData) });
+    if (res.success) { showToast('Advance requested'); setModalType(null); loadPage(page); }
+    else showToast(res.error, 'error');
+  };
+
+  const updateAdvanceStatus = async (id, status) => {
+    const res = await api('/api/advances', { method: 'PUT', body: JSON.stringify({ id, status }) });
+    if (res.success) { showToast(`Advance ${status}`); loadPage(page); }
   };
 
   if (!user) return <div className="loading"><div className="spinner"></div></div>;
-
   const isAdmin = user.role === 'admin';
 
-  // ── Nav items ──
   const navSections = isAdmin ? [
     { section: 'Overview', items: [{ id: 'home', label: 'Dashboard', icon: Icons.dashboard }] },
-    { section: 'Team', items: [{ id: 'team', label: 'Team', icon: Icons.team }, { id: 'attendance', label: 'Attendance', icon: Icons.attendance }] },
-    { section: 'Operations', items: [{ id: 'parcels', label: 'Parcels', icon: Icons.parcels }] },
-    { section: 'Finance', items: [{ id: 'salary', label: 'Salary', icon: Icons.salary }, { id: 'expenses', label: 'Expenses', icon: Icons.expenses }] },
-    { section: 'System', items: [{ id: 'settings', label: 'Settings', icon: Icons.settings }] },
+    { section: 'Team Logs', items: [{ id: 'team', label: 'Employees', icon: Icons.team }, { id: 'attendance', label: 'Attendance', icon: Icons.attendance }, { id: 'daily_logs', label: 'Daily Work Logs', icon: Icons.logs }] },
+    { section: 'Operations', items: [{ id: 'rides', label: 'Ride Tracking', icon: Icons.rides }] },
+    { section: 'Finance', items: [{ id: 'salary', label: 'Salaries', icon: Icons.salary }, { id: 'advances', label: 'Advances', icon: Icons.advances }] },
   ] : [
-    { section: 'Overview', items: [{ id: 'home', label: 'Dashboard', icon: Icons.dashboard }] },
-    { section: 'My Work', items: [
-      { id: 'attendance', label: 'My Attendance', icon: Icons.attendance },
-      { id: 'salary', label: 'My Salary', icon: Icons.salary },
-      { id: 'expenses', label: 'My Expenses', icon: Icons.expenses },
-      ...(user.employeeRole === 'rider' ? [{ id: 'parcels', label: 'My Deliveries', icon: Icons.parcels }] : []),
-    ]},
+    { section: 'Overview', items: [{ id: 'home', label: 'My Dashboard', icon: Icons.dashboard }] },
+    { section: 'My Logs', items: [{ id: 'daily_logs', label: 'My Work Logs', icon: Icons.logs }, ...(user.employeeRole === 'rider' ? [{ id: 'rides', label: 'My Rides', icon: Icons.rides }] : [])] },
+    { section: 'Finance', items: [{ id: 'salary', label: 'My Salary', icon: Icons.salary }, { id: 'advances', label: 'My Advances', icon: Icons.advances }] },
   ];
 
-  const statusNext = { assigned: 'picked_up', picked_up: 'in_transit', in_transit: 'delivered' };
-
-  // ── Render page content ──
+  /* UI Renderers */
   const renderContent = () => {
     if (loading) return <div className="loading"><div className="spinner"></div></div>;
 
     switch (page) {
       case 'home':
         if (isAdmin && data?.stats) {
-          const s = data.stats;
           return <>
-            <div className="page-header">
-              <div>
-                <h1>Good {getGreeting()}, {user.name.split(' ')[0]} 👋</h1>
-                <div className="page-header-sub">Here&apos;s what&apos;s happening at Ved Logistics today</div>
-              </div>
-            </div>
+            <div className="page-header"><div><h1>Dashboard</h1></div></div>
             <div className="stat-grid">
               {[
-                { label: 'Team Members', value: s.totalEmployees, color: 'var(--blue)' },
-                { label: 'Active Riders', value: s.totalRiders, color: 'var(--teal)' },
-                { label: 'Delivered Today', value: s.deliveredToday, color: 'var(--emerald)' },
-                { label: 'Pending Parcels', value: s.pendingParcels, color: 'var(--amber)' },
-                { label: 'Checked In', value: s.todayAttendance, color: 'var(--indigo)' },
-                { label: 'Paid This Month', value: fmtCurrency(s.totalPaidMonth), color: 'var(--rose)' },
-              ].map((stat, i) => (
-                <div className="stat-card" key={i} style={{ '--stat-color': stat.color }}>
-                  <div className="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /></svg></div>
-                  <div className="stat-value">{stat.value}</div>
-                  <div className="stat-label">{stat.label}</div>
-                </div>
+                { label: 'Total Employees', value: data.stats.totalEmployees, color: 'var(--blue)' },
+                { label: 'Checked In Today', value: data.stats.todayAttendance, color: 'var(--emerald)' },
+                { label: 'Pending Advances', value: data.stats.pendingAdvances, color: 'var(--amber)' },
+                { label: 'Paid This Month', value: fmtCurrency(data.stats.totalPaidMonth), color: 'var(--rose)' },
+              ].map((s, i) => (
+                <div className="stat-card" key={i}><div className="stat-value" style={{color: s.color}}>{s.value}</div><div className="stat-label">{s.label}</div></div>
               ))}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
               <div className="card">
-                <div className="card-header"><div><div className="card-title">Recent Parcels</div></div></div>
-                <div className="table-wrap">
-                  <table><thead><tr><th>Parcel</th><th>Customer</th><th>Status</th></tr></thead>
-                    <tbody>{(data.recentParcels || []).map(p => (
-                      <tr key={p.id}><td style={{ fontWeight: 700 }}>{p.parcelId}</td><td>{p.customerName}</td>
-                        <td><span className={`badge badge-${p.status}`}>{p.status.replace('_', ' ')}</span></td></tr>
-                    ))}</tbody>
-                  </table>
-                </div>
-              </div>
-              <div className="card">
-                <div className="card-header"><div><div className="card-title">Today&apos;s Attendance</div><div className="card-subtitle">{s.todayAttendance} checked in</div></div></div>
-                {(data.todayAttendance || []).map(a => (
-                  <div className="activity-item" key={a.id}>
-                    <div className="avatar">{a.employee?.name?.split(' ').map(w => w[0]).join('').slice(0, 2)}</div>
-                    <div><div className="activity-text">{a.employee?.name}</div><div className="activity-time">In: {fmtTime(a.checkIn)}{a.checkOut ? ` · Out: ${fmtTime(a.checkOut)}` : ' · Working'}</div></div>
+                <div className="card-header"><div className="card-title">Recent Work Logs (Today)</div></div>
+                {data.recentLogs?.map(l => (
+                  <div key={l.id} className="activity-item">
+                    <div className="avatar">{l.employee.name[0]}</div>
+                    <div><div className="activity-text">{l.employee.name}</div><div className="activity-time">Delivered: {l.delivered} | Picked-Up: {l.pickedUp} | Store: {l.store}</div></div>
                   </div>
                 ))}
-                {(!data.todayAttendance || data.todayAttendance.length === 0) && <div className="empty-state"><p>No check-ins yet</p></div>}
+                {!data.recentLogs?.length && <div className="empty-state">No logs submitted today</div>}
               </div>
             </div>
           </>;
         }
-        // Employee home
-        if (data) {
-          const att = data.todayAttendance;
-          const emp = data.employee;
+        
+        // Employee Home
+        if (data && !isAdmin) {
+          const { todayAttendance, todayLog, activeRide } = data;
           return <>
-            <div className="page-header"><div><h1>Welcome, {user.name.split(' ')[0]} 👋</h1><div className="page-header-sub">{fmtDate(new Date())} · {user.employeeRole === 'rider' ? 'Rider' : 'Employee'}</div></div></div>
-            <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', marginBottom: 24 }}>
-              <div className="card" style={{ flex: 1, minWidth: 280, textAlign: 'center' }}>
-                <h3 style={{ marginBottom: 16 }}>Today&apos;s Attendance</h3>
-                {att ? <>
-                  <span className="badge badge-active" style={{ fontSize: '.8rem', padding: '6px 16px' }}>✓ In at {fmtTime(att.checkIn)}</span>
-                  {att.checkOut ? <div style={{ marginTop: 12 }}><span className="badge badge-inactive">Out: {fmtTime(att.checkOut)}</span><div style={{ marginTop: 8, fontSize: '.85rem', color: 'var(--text-secondary)' }}>Duration: <strong>{fmtDuration(new Date(att.checkOut) - new Date(att.checkIn))}</strong></div></div>
-                    : <div style={{ marginTop: 16 }}><button className="checkin-btn out" onClick={handleCheckOut}>🕐 Check Out</button></div>}
-                </> : <button className="checkin-btn in" onClick={handleCheckIn}>📍 Check In Now</button>}
-              </div>
-              <div className="card" style={{ flex: 1, minWidth: 280 }}>
-                <h3 style={{ marginBottom: 12 }}>Quick Info</h3>
-                {[
-                  ['Base Salary', fmtCurrency(emp?.baseSalary)],
-                  ['Department', emp?.department ?? '—'],
-                  ['Role', user.employeeRole],
-                  ['Join Date', fmtDate(emp?.joinDate)],
-                ].map(([l, v]) => (
-                  <div key={l} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
-                    <span style={{ color: 'var(--text-muted)', fontSize: '.82rem' }}>{l}</span><strong>{v}</strong>
+            <div className="page-header"><div><h1>Welcome, {user.name}</h1></div></div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20 }}>
+              
+              {/* Check IN/OUT */}
+              <div className="card" style={{textAlign: 'center'}}>
+                <h3>Attendance</h3>
+                {todayAttendance ? (
+                  <div style={{marginTop: 15}}>
+                    <div className="badge badge-active" style={{marginBottom: 10, display: 'block'}}>In at: {fmtTime(todayAttendance.checkIn)}</div>
+                    {todayAttendance.checkOut ? <div className="badge badge-inactive">Out at: {fmtTime(todayAttendance.checkOut)}</div>
+                    : <button className="btn btn-danger" onClick={() => handleCheckInOut(true)}>Check Out</button>}
                   </div>
-                ))}
+                ) : <button className="btn btn-primary" onClick={() => handleCheckInOut(false)}>Check In</button>}
               </div>
-            </div>
-            {user.employeeRole === 'rider' && (data.myParcels || []).length > 0 && (
-              <div className="card">
-                <div className="card-header"><div><div className="card-title">My Active Deliveries</div></div></div>
-                <div className="table-wrap">
-                  <table><thead><tr><th>Parcel</th><th>Customer</th><th>Status</th><th>Action</th></tr></thead>
-                    <tbody>{data.myParcels.map(p => (
-                      <tr key={p.id}><td style={{ fontWeight: 700 }}>{p.parcelId}</td><td>{p.customerName}</td>
-                        <td><span className={`badge badge-${p.status}`}>{p.status.replace('_', ' ')}</span></td>
-                        <td>{statusNext[p.status] && <button className="btn-primary btn-sm" onClick={() => updateParcelStatus(p.id, statusNext[p.status])}>→ {statusNext[p.status].replace('_', ' ')}</button>}</td>
-                      </tr>
-                    ))}</tbody>
-                  </table>
+
+              {/* Ride Tracking */}
+              {user.employeeRole === 'rider' && (
+                <div className="card" style={{textAlign: 'center'}}>
+                  <h3>Ride Tracking</h3>
+                  <div style={{marginTop: 15}}>
+                    {activeRide ? (
+                       <button className="btn btn-danger" onClick={() => { setModalData({type:'end'}); setModalType('ride'); }}>End Ride (Upload Speedo)</button>
+                    ) : (
+                       <button className="btn btn-primary" onClick={() => { setModalData({type:'start'}); setModalType('ride'); }}>Start Ride (Upload Speedo)</button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Work Log */}
+              <div className="card" style={{textAlign: 'center'}}>
+                <h3>Today&apos;s Work Log</h3>
+                <div style={{marginTop: 15}}>
+                  <button className="btn-outline" onClick={() => { setModalData(todayLog || {}); setModalType('log'); }}>
+                    {todayLog ? 'Update Log' : 'Add Daily Log'}
+                  </button>
+                  {todayLog && <div style={{fontSize:'.8rem', color:'var(--text-muted)', marginTop:8}}>Delivered: {todayLog.delivered} | Picked: {todayLog.pickedUp}</div>}
                 </div>
               </div>
-            )}
+            </div>
           </>;
         }
         return null;
 
-      case 'team':
+      case 'daily_logs':
         return <>
-          <div className="page-header"><div><h1>👥 Team Members</h1><div className="page-header-sub">{employees.length} members</div></div></div>
-          <div className="card">
-            <div className="table-wrap">
-              <table><thead><tr><th>Name</th><th>Email</th><th>Department</th><th>Role</th><th>Salary</th><th>Status</th></tr></thead>
-                <tbody>{employees.filter(e => e.role !== 'admin').map(e => (
-                  <tr key={e.id}><td><div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><div className="avatar">{e.name.split(' ').map(w => w[0]).join('').slice(0, 2)}</div><strong>{e.name}</strong></div></td>
-                    <td>{e.email}</td><td>{e.department}</td>
-                    <td><span className={`badge badge-${e.employeeRole === 'rider' ? 'rider' : 'role'}`}>{e.employeeRole}</span></td>
-                    <td>{fmtCurrency(e.baseSalary)}</td>
-                    <td><span className={`badge badge-${e.status === 'active' ? 'active' : 'inactive'}`}>{e.status}</span></td>
-                  </tr>
-                ))}</tbody>
-              </table>
-            </div>
+          <div className="page-header"><div><h1>Daily Work Logs</h1></div></div>
+          <div className="card table-wrap">
+            <table><thead><tr>{isAdmin&&<th>Employee</th>}<th>Date</th><th>Delivered</th><th>Picked Up</th><th>Store/Warehouse</th><th>Notes</th></tr></thead>
+              <tbody>{dailyLogs.map(l => (
+                <tr key={l.id}>{isAdmin&&<td><strong>{l.employee?.name}</strong></td>}<td>{fmtDate(l.date)}</td>
+                  <td><span className="badge badge-delivered">{l.delivered}</span></td><td><span className="badge badge-assigned">{l.pickedUp}</span></td>
+                  <td>{l.store}</td><td>{l.note}</td>
+                </tr>
+              ))}</tbody>
+            </table>
           </div>
         </>;
 
-      case 'attendance':
+      case 'rides':
         return <>
-          <div className="page-header"><div><h1>📅 Attendance</h1><div className="page-header-sub">{attendance.length} records</div></div></div>
-          <div className="card">
-            <div className="table-wrap">
-              <table><thead><tr><th>Employee</th><th>Date</th><th>Check In</th><th>Check Out</th><th>Duration</th></tr></thead>
-                <tbody>{attendance.slice(0, 50).map(a => (
-                  <tr key={a.id}>
-                    <td><strong>{a.employee?.name || '—'}</strong></td><td>{a.date}</td>
-                    <td>{fmtTime(a.checkIn)}</td><td>{a.checkOut ? fmtTime(a.checkOut) : <span className="badge badge-active">Working</span>}</td>
-                    <td>{a.checkOut ? fmtDuration(new Date(a.checkOut) - new Date(a.checkIn)) : '—'}</td>
-                  </tr>
-                ))}</tbody>
-              </table>
-            </div>
+          <div className="page-header"><div><h1>Ride Tracking (Proof)</h1></div></div>
+          <div className="card table-wrap">
+            <table><thead><tr>{isAdmin&&<th>Rider</th>}<th>Date</th><th>Distance</th><th>Start Proof</th><th>End Proof</th><th>Status</th></tr></thead>
+              <tbody>{rides.map(r => (
+                <tr key={r.id}>{isAdmin&&<td><strong>{r.rider?.name}</strong></td>}<td>{fmtDate(r.date)}</td>
+                  <td>{r.distance ? `${r.distance} KM` : '—'}</td>
+                  <td>{r.startPhoto ? <img src={r.startPhoto} style={{width: 50, height: 30, objectFit:'cover', borderRadius:4, cursor:'zoom-in'}} onClick={()=>window.open(r.startPhoto)} alt=""/> : 'No photo'}</td>
+                  <td>{r.endPhoto ? <img src={r.endPhoto} style={{width: 50, height: 30, objectFit:'cover', borderRadius:4, cursor:'zoom-in'}} onClick={()=>window.open(r.endPhoto)} alt=""/> : '—'}</td>
+                  <td><span className={`badge badge-${r.status === 'completed' ? 'active' : 'pending'}`}>{r.status}</span></td>
+                </tr>
+              ))}</tbody>
+            </table>
           </div>
         </>;
 
-      case 'parcels':
+      case 'advances':
         return <>
-          <div className="page-header"><div><h1>📦 Parcels</h1><div className="page-header-sub">{parcels.length} total</div></div></div>
-          <div className="card">
-            <div className="table-wrap">
-              <table><thead><tr><th>ID</th><th>Customer</th><th>Route</th><th>Rider</th><th>Status</th>{isAdmin && <th>Action</th>}</tr></thead>
-                <tbody>{parcels.map(p => (
-                  <tr key={p.id}><td style={{ fontWeight: 700 }}>{p.parcelId}</td><td>{p.customerName}</td>
-                    <td style={{ fontSize: '.78rem' }}>{p.pickupAddress} → {p.deliveryAddress}</td>
-                    <td>{p.rider?.name || '—'}</td>
-                    <td><span className={`badge badge-${p.status}`}>{p.status.replace('_', ' ')}</span></td>
-                    {isAdmin && <td>{statusNext[p.status] && <button className="btn-primary btn-sm" onClick={() => updateParcelStatus(p.id, statusNext[p.status])}>→ {statusNext[p.status].replace('_', ' ')}</button>}</td>}
-                  </tr>
-                ))}</tbody>
-              </table>
-            </div>
+          <div className="page-header">
+            <div><h1>Advances & Requests</h1></div>
+            {!isAdmin && <button className="btn-primary" onClick={() => {setModalData({}); setModalType('advance')}}>Request Advance</button>}
+          </div>
+          <div className="card table-wrap">
+            <table><thead><tr>{isAdmin&&<th>Employee</th>}<th>Date</th><th>Amount</th><th>Reason</th><th>Status</th>{isAdmin&&<th>Actions</th>}</tr></thead>
+              <tbody>{advances.map(a => (
+                <tr key={a.id}>{isAdmin&&<td><strong>{a.employee?.name}</strong></td>}<td>{fmtDate(a.requestDate)}</td>
+                  <td>{fmtCurrency(a.amount)}</td><td>{a.reason}</td>
+                  <td><span className={`badge badge-${a.status}`}>{a.status}</span></td>
+                  {isAdmin && <td>
+                    {a.status === 'pending' && <><button className="btn-primary btn-sm" onClick={()=>updateAdvanceStatus(a.id, 'approved')} style={{marginRight:5}}>Approve</button>
+                    <button className="btn-danger btn-sm" onClick={()=>updateAdvanceStatus(a.id, 'rejected')}>Reject</button></>}
+                  </td>}
+                </tr>
+              ))}</tbody>
+            </table>
           </div>
         </>;
-
+        
       case 'salary':
         return <>
-          <div className="page-header"><div><h1>💰 Salary Payments</h1><div className="page-header-sub">{salaryPayments.length} payments</div></div></div>
-          <div className="card">
-            <div className="table-wrap">
-              <table><thead><tr><th>Employee</th><th>Amount</th><th>Month</th><th>Payment Date</th><th>Paid By</th></tr></thead>
-                <tbody>{salaryPayments.map(p => (
-                  <tr key={p.id}><td><strong>{p.employee?.name || '—'}</strong></td><td>{fmtCurrency(p.amount)}</td>
-                    <td>{p.month}</td><td>{p.paymentDate}</td><td>{p.paidBy || '—'}</td></tr>
-                ))}</tbody>
-              </table>
-            </div>
+          <div className="page-header"><div><h1>Salary & Deductions</h1></div></div>
+          <div className="card table-wrap">
+            <table><thead><tr>{isAdmin&&<th>Employee</th>}<th>Month</th><th>Gross Salary</th><th>Deductions (Advances)</th><th>Net Paid</th></tr></thead>
+              <tbody>{salaryPayments.map(p => (
+                <tr key={p.id}>{isAdmin&&<td><strong>{p.employee?.name}</strong></td>}<td>{p.month}</td>
+                  <td>{fmtCurrency(p.amount)}</td><td style={{color:'var(--rose)'}}>-{fmtCurrency(p.deductions)}</td>
+                  <td style={{color:'var(--emerald)', fontWeight:'bold'}}>{fmtCurrency(p.netAmount)}</td>
+                </tr>
+              ))}</tbody>
+            </table>
           </div>
         </>;
-
-      case 'expenses':
-        return <>
-          <div className="page-header"><div><h1>💳 Expenses</h1><div className="page-header-sub">{expenses.length} records</div></div></div>
-          <div className="card">
-            <div className="table-wrap">
-              <table><thead><tr><th>Employee</th><th>Type</th><th>Amount</th><th>Description</th><th>Status</th></tr></thead>
-                <tbody>{expenses.map(e => (
-                  <tr key={e.id}><td><strong>{e.employee?.name || '—'}</strong></td><td style={{ textTransform: 'capitalize' }}>{e.type}</td>
-                    <td>{fmtCurrency(e.amount)}</td><td>{e.description}</td>
-                    <td><span className={`badge badge-${e.status}`}>{e.status}</span></td></tr>
-                ))}</tbody>
-              </table>
-            </div>
-          </div>
-        </>;
-
-      case 'settings':
-        return <>
-          <div className="page-header"><div><h1>⚙️ Settings</h1></div></div>
-          <div className="card" style={{ maxWidth: 500 }}>
-            <h3 style={{ marginBottom: 16 }}>System Info</h3>
-            {[['Company', 'Ved Logistics'], ['Database', 'Supabase PostgreSQL'], ['Framework', 'Next.js'], ['Deployment', 'Vercel Ready']].map(([k, v]) => (
-              <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
-                <span style={{ color: 'var(--text-muted)' }}>{k}</span><strong>{v}</strong>
-              </div>
-            ))}
-          </div>
-        </>;
-
-      default:
-        return <div className="empty-state"><h3>Page not found</h3></div>;
+        
+      // Keep Team and Attendance basic rendering the same
+      case 'team': return <div className="card table-wrap"><table><thead><tr><th>Name</th><th>Role</th><th>Salary</th></tr></thead><tbody>{employees.filter(e=>e.role!=='admin').map(e=><tr key={e.id}><td>{e.name}</td><td>{e.employeeRole}</td><td>{fmtCurrency(e.baseSalary)}</td></tr>)}</tbody></table></div>;
+      case 'attendance': return <div className="card table-wrap"><table><thead><tr><th>Name</th><th>Date</th><th>In</th><th>Out</th></tr></thead><tbody>{attendance.slice(0, 50).map(a=><tr key={a.id}><td>{a.employee?.name}</td><td>{a.date}</td><td>{fmtTime(a.checkIn)}</td><td>{fmtTime(a.checkOut)}</td></tr>)}</tbody></table></div>;
+      
+      default: return <div>Select an option</div>;
     }
   };
 
   return (
     <div className="app-layout">
-      {/* Sidebar Overlay */}
       {sidebarOpen && <div className="sidebar-overlay show" onClick={() => setSidebarOpen(false)} />}
-
-      {/* Sidebar */}
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-brand">
-          <Image src="/logo.jpg" alt="Ved Logistics" width={40} height={40} />
+          <Image src="/icon.jpg" alt="Logo" width={40} height={40} />
           <div className="sidebar-brand-text">Ved Logistics<small>Management Portal</small></div>
         </div>
-
         <nav className="sidebar-nav">
-          {navSections.map((sec) => (
+          {navSections.map(sec => (
             <div className="nav-section" key={sec.section}>
               <div className="nav-section-title">{sec.section}</div>
-              {sec.items.map((item) => (
-                <a key={item.id} className={`nav-item ${page === item.id ? 'active' : ''}`} onClick={() => navigate(item.id)}>
-                  {item.icon}<span>{item.label}</span>
-                </a>
-              ))}
+              {sec.items.map(i => <a key={i.id} className={`nav-item ${page===i.id?'active':''}`} onClick={()=>navigate(i.id)}>{i.icon}<span>{i.label}</span></a>)}
             </div>
           ))}
         </nav>
+      </aside>
 
-        <div className="sidebar-footer">
-          <div className="sidebar-user">
-            <div className="sidebar-user-avatar">{user.name.split(' ').map(w => w[0]).join('').slice(0, 2)}</div>
-            <div>
-              <div className="sidebar-user-name">{user.name}</div>
-              <div className="sidebar-user-role">{isAdmin ? 'Administrator' : user.employeeRole === 'rider' ? 'Rider' : 'Employee'}</div>
+      <div className="main-area">
+        <header className="topbar">
+          <div className="topbar-left"><button className="topbar-hamburger" onClick={()=>setSidebarOpen(true)}>☰</button><strong>{navSections.flatMap(s=>s.items).find(i=>i.id===page)?.label}</strong></div>
+          <div className="topbar-right"><button className="btn-outline btn-sm" onClick={logout}>Logout</button></div>
+        </header>
+
+        <main className="content">{renderContent()}</main>
+      </div>
+
+      {/* Modals */}
+      {modalType && (
+        <div className="modal-overlay open">
+          <div className="modal-box">
+            <div className="modal-header">
+              <h3>{modalType === 'ride' ? `${modalData.type==='start'?'Start':'End'} Ride` : modalType === 'log' ? 'Work Log' : 'Request Advance'}</h3>
+              <button className="modal-close" onClick={()=>setModalType(null)}>×</button>
+            </div>
+            <div className="modal-body">
+              {/* RIDE MODAL */}
+              {modalType === 'ride' && <form onSubmit={submitRide}>
+                <div className="form-group">
+                  <label className="form-label">{modalData.type === 'start' ? 'Start KM Reading' : 'End KM Reading'}</label>
+                  <input type="number" required className="form-input" value={modalData.type==='start'?modalData.startKm||'':modalData.endKm||''} onChange={e=>setModalData({...modalData, [modalData.type==='start'?'startKm':'endKm']: e.target.value})} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Speedometer Photo Proof</label>
+                  <input type="file" accept="image/*" capture="environment" className="form-input" ref={fileInputRef} onChange={handlePhotoUpload} required />
+                  {modalData.photo && <img src={modalData.photo} alt="Preview" style={{marginTop:10, maxHeight: 150, borderRadius:8}} />}
+                </div>
+                <button type="submit" className="btn-primary" style={{width:'100%'}}>Save Ride Log</button>
+              </form>}
+              
+              {/* LOG MODAL */}
+              {modalType === 'log' && <form onSubmit={submitDailyLog}>
+                <div className="form-group"><label className="form-label">Delivered Items Count</label><input type="number" className="form-input" value={modalData.delivered||0} onChange={e=>setModalData({...modalData, delivered: parseInt(e.target.value)||0})} /></div>
+                <div className="form-group"><label className="form-label">Picked Up Items Count</label><input type="number" className="form-input" value={modalData.pickedUp||0} onChange={e=>setModalData({...modalData, pickedUp: parseInt(e.target.value)||0})} /></div>
+                <div className="form-group"><label className="form-label">Store / Warehouse Items</label><input type="number" className="form-input" value={modalData.store||0} onChange={e=>setModalData({...modalData, store: parseInt(e.target.value)||0})} /></div>
+                <div className="form-group"><label className="form-label">Notes</label><textarea className="form-input" value={modalData.note||''} onChange={e=>setModalData({...modalData, note: e.target.value})} /></div>
+                <button type="submit" className="btn-primary" style={{width:'100%'}}>Save Work Log</button>
+              </form>}
+
+              {/* ADVANCE MODAL */}
+              {modalType === 'advance' && <form onSubmit={submitAdvance}>
+                <div className="form-group"><label className="form-label">Amount (₹)</label><input type="number" required className="form-input" value={modalData.amount||''} onChange={e=>setModalData({...modalData, amount: e.target.value})} /></div>
+                <div className="form-group"><label className="form-label">Reason</label><textarea required className="form-input" value={modalData.reason||''} onChange={e=>setModalData({...modalData, reason: e.target.value})} /></div>
+                <button type="submit" className="btn-primary" style={{width:'100%'}}>Request Advance</button>
+              </form>}
             </div>
           </div>
         </div>
-      </aside>
+      )}
 
-      {/* Main */}
-      <div className="main-area">
-        <header className="topbar">
-          <div className="topbar-left">
-            <button className="topbar-hamburger" onClick={() => setSidebarOpen(!sidebarOpen)}>☰</button>
-            <div className="topbar-breadcrumb"><strong>{navSections.flatMap(s => s.items).find(i => i.id === page)?.label || 'Dashboard'}</strong></div>
-          </div>
-          <div className="topbar-right">
-            <button className="btn-outline btn-sm" onClick={logout} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-              Logout
-            </button>
-          </div>
-        </header>
-
-        <main className="content">
-          {renderContent()}
-        </main>
-      </div>
+      {toast && <div className={`login-toast show ${toast.type}`}>{toast.msg}</div>}
     </div>
   );
 }
