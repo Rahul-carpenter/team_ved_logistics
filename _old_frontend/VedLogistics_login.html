@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Ved Logistics — Delivery Portal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+<style>
+/* ── RESET ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;font-family:'Manrope',sans-serif;cursor:none}
+
+/* ── ORIGINAL PALETTE ── */
+:root{
+  --bg:       #f3f6fb;
+  --bg2:      #e9eff8;
+  --blue:     #2563eb;
+  --blue-dk:  #16347a;
+  --blue-lt:  #7aa7f8;
+  --blue-ac:  #4cb8ff;
+  --text:     #0f172a;
+  --soft:     #5b6678;
+  --line:     rgba(15,23,42,0.08);
+  --line-b:   rgba(37,99,235,0.18);
+  --panel:    rgba(255,255,255,0.92);
+  --shadow:   0 24px 64px rgba(15,23,42,0.10);
+  --shadow-s: 0 8px 24px rgba(37,99,235,0.10);
+}
+
+/* ── CANVAS (3D behind everything) ── */
+#canvas3d{
+  position:fixed;inset:0;z-index:0;
+  opacity:.72;
+}
+
+/* ── BACKGROUND (original gradient from the document) ── */
+body{
+  background:
+    radial-gradient(circle at top left,   rgba(37,99,235,0.10), transparent 26%),
+    radial-gradient(circle at 85% 15%,   rgba(76,184,255,0.12), transparent 22%),
+    radial-gradient(circle at 50% 100%,  rgba(22,52,122,0.08),  transparent 28%),
+    linear-gradient(140deg,#ffffff 0%,#f3f6fb 42%,#e9eff8 100%);
+  color:var(--text);
+}
+
+/* ── AMBIENT BLOBS (vivid multi-color) ── */
+.blob{
+  position:fixed;border-radius:50%;filter:blur(42px);opacity:.50;
+  pointer-events:none;z-index:1;
+  animation:blobFloat 14s ease-in-out infinite;
+}
+.blob-1{top:-100px;left:-60px;width:380px;height:380px;background:radial-gradient(circle,rgba(99,102,241,.38),rgba(37,99,235,.18),transparent 70%)}
+.blob-2{right:-70px;bottom:-100px;width:420px;height:420px;background:radial-gradient(circle,rgba(6,182,212,.32),rgba(76,184,255,.15),transparent 70%);animation-duration:18s;animation-delay:-4s}
+.blob-3{top:40%;left:35%;width:300px;height:300px;background:radial-gradient(circle,rgba(168,85,247,.22),rgba(139,92,246,.10),transparent 70%);animation-duration:22s;animation-delay:-8s}
+.blob-4{bottom:20%;left:60%;width:260px;height:260px;background:radial-gradient(circle,rgba(245,158,11,.18),rgba(251,191,36,.08),transparent 70%);animation-duration:16s;animation-delay:-6s}
+
+/* ── GRID OVERLAY (vivid color-shifting) ── */
+.grid{
+  position:fixed;inset:0;z-index:1;pointer-events:none;
+  background-image:
+    linear-gradient(rgba(99,102,241,.14) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(6,182,212,.16) 1px,transparent 1px);
+  background-size:70px 70px;
+  mask-image:linear-gradient(to bottom,rgba(0,0,0,.30),transparent 85%);
+  -webkit-mask-image:linear-gradient(to bottom,rgba(0,0,0,.30),transparent 85%);
+  animation:gridHue 8s ease-in-out infinite alternate;
+}
+
+/* ── CUSTOM CURSOR ── */
+#cur{
+  position:fixed;width:9px;height:9px;border-radius:50%;
+  background:var(--blue);pointer-events:none;z-index:9999;
+  left:0;top:0;transform:translate(-50%,-50%);
+  transition:width .18s,height .18s,background .18s;
+  box-shadow:0 0 10px rgba(37,99,235,.4);
+}
+#cur.big{width:36px;height:36px;background:rgba(37,99,235,.15);box-shadow:0 0 0 2px var(--blue-lt)}
+
+/* ── FULL-SCREEN LAYOUT ── */
+.page{
+  position:fixed;inset:0;z-index:2;
+  display:grid;
+  grid-template-columns:1fr 430px;
+  grid-template-rows:58px 1fr;
+}
+
+/* ── NAV ── */
+nav{
+  grid-column:1/-1;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 36px;
+  background:rgba(255,255,255,0.80);
+  border-bottom:1px solid var(--line-b);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  box-shadow:0 1px 0 var(--line);
+  animation:slideDown .6s ease both;
+}
+.logo{display:flex;align-items:center;gap:12px}
+.logo-box{
+  width:44px;height:44px;border-radius:12px;flex-shrink:0;
+  background:#fff;
+  border:1px solid var(--line-b);
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 6px 14px rgba(37,99,235,.18);
+  padding:3px;
+  overflow:hidden;
+}
+.logo-box img{
+  width:100%;height:100%;object-fit:contain;
+}
+.logo-name{font-family:'Space Grotesk',sans-serif;font-size:.95rem;font-weight:700;color:var(--text);letter-spacing:-.01em}
+.logo-name small{display:block;font-size:.58rem;font-weight:600;color:var(--soft);letter-spacing:.14em;text-transform:uppercase;font-family:'Manrope',sans-serif}
+.nav-links{display:flex;gap:28px}
+.nav-links a{font-size:.78rem;font-weight:600;color:var(--soft);text-decoration:none;letter-spacing:.03em;transition:color .2s;position:relative}
+.nav-links a::after{content:'';position:absolute;bottom:-3px;left:0;right:0;height:2px;background:var(--blue);border-radius:2px;transform:scaleX(0);transition:transform .25s;transform-origin:left}
+.nav-links a:hover{color:var(--blue)}
+.nav-links a:hover::after{transform:scaleX(1)}
+.nav-right{display:flex;align-items:center;gap:8px;font-size:.73rem;font-weight:700;color:var(--blue);letter-spacing:.06em}
+.live-dot{width:7px;height:7px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,.2);animation:livePulse 2s infinite}
+
+/* ── LEFT PANEL ── */
+.left{
+  display:flex;flex-direction:column;justify-content:center;
+  padding:0 52px;gap:20px;
+  animation:riseUp .7s .1s ease both;
+  min-height:0;overflow:hidden;
+}
+.eyebrow{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:6px 14px;border-radius:999px;
+  border:1px solid var(--line-b);background:rgba(37,99,235,.06);
+  color:var(--blue);font-size:.7rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;width:fit-content;
+}
+.eyebrow::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--blue);box-shadow:0 0 0 4px rgba(37,99,235,.15)}
+
+h1{
+  font-family:'Space Grotesk',sans-serif;
+  font-size:clamp(2rem,3.4vw,3.8rem);
+  font-weight:700;line-height:1.06;letter-spacing:-.04em;color:var(--text);
+}
+h1 em{
+  font-style:normal;
+  background:linear-gradient(90deg,var(--blue),var(--blue-ac));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+
+.desc{font-size:.875rem;line-height:1.65;color:var(--soft);max-width:440px;font-weight:500}
+
+/* METRICS — card style from original */
+.metrics{
+  display:grid;grid-template-columns:repeat(3,1fr);
+  gap:1px;border-radius:16px;overflow:hidden;
+  border:1px solid var(--line-b);background:var(--line-b);max-width:400px;
+  box-shadow:var(--shadow-s);
+  /* breathing animation like original stat cards */
+  animation:cardBreathe 5s ease-in-out infinite;
+}
+.metric{background:rgba(255,255,255,.92);padding:16px 18px;text-align:left;transition:background .2s}
+.metric:hover{background:#fff}
+.mv{font-family:'Space Grotesk',sans-serif;font-size:1.5rem;font-weight:700;color:var(--blue);letter-spacing:-.02em}
+.mv span{font-size:.9rem;color:var(--blue-lt)}
+.ml{font-size:.64rem;color:var(--soft);text-transform:uppercase;letter-spacing:.1em;margin-top:3px;font-weight:600}
+
+/* TRUST PILL — original hero-trust */
+.trust-pill{
+  display:inline-flex;align-items:center;gap:10px;
+  padding:9px 16px;border:1px solid var(--line);
+  border-radius:999px;background:rgba(255,255,255,.7);
+  color:var(--soft);font-size:.82rem;font-weight:600;
+  box-shadow:0 2px 10px rgba(15,23,42,.04);width:fit-content;
+  animation:shinePill 4s ease-in-out infinite;
+}
+.trust-pill i{width:7px;height:7px;border-radius:50%;background:var(--blue);box-shadow:0 0 0 5px rgba(37,99,235,.12);flex-shrink:0;display:block}
+
+/* FEATURE BADGES */
+.badges{display:flex;flex-wrap:wrap;gap:8px}
+.badge{
+  padding:7px 13px;border-radius:999px;
+  border:1px solid var(--line);background:rgba(255,255,255,.75);
+  font-size:.72rem;font-weight:700;color:var(--blue-dk);
+  box-shadow:0 2px 8px rgba(15,23,42,.03);
+  display:flex;align-items:center;gap:6px;
+}
+.badge svg{opacity:.6;flex-shrink:0}
+
+/* LIVE CARD */
+.live-card{
+  display:flex;align-items:center;gap:12px;
+  padding:12px 16px;border-radius:14px;
+  border:1px solid var(--line-b);background:rgba(255,255,255,.88);
+  box-shadow:var(--shadow-s);width:fit-content;
+  animation:floatCard 5s ease-in-out infinite;
+}
+.live-ic{
+  width:34px;height:34px;flex-shrink:0;border-radius:9px;
+  background:linear-gradient(135deg,rgba(37,99,235,.15),rgba(76,184,255,.1));
+  border:1px solid var(--line-b);
+  display:flex;align-items:center;justify-content:center;
+}
+.live-title{font-size:.8rem;font-weight:700;color:var(--text);margin-bottom:2px}
+.live-sub{font-size:.68rem;color:var(--soft);font-weight:500}
+
+/* ── RIGHT FORM PANEL ── */
+.right{
+  border-left:1px solid var(--line-b);
+  background:linear-gradient(180deg,rgba(255,255,255,.6),rgba(237,242,247,.85));
+  backdrop-filter:blur(32px);-webkit-backdrop-filter:blur(32px);
+  display:flex;align-items:center;justify-content:center;
+  padding:16px 32px;
+  animation:slideIn .7s .15s ease both;
+  position:relative;overflow-y:auto;overflow-x:hidden;min-height:0;
+  scrollbar-width:thin;scrollbar-color:rgba(37,99,235,.15) transparent;
+}
+.right::-webkit-scrollbar{width:4px}
+.right::-webkit-scrollbar-thumb{background:rgba(37,99,235,.18);border-radius:99px}
+.right::-webkit-scrollbar-track{background:transparent}
+
+/* panel glow from original */
+.right::before{
+  content:'';position:absolute;inset:12% 10%;
+  border-radius:30px;
+  background:radial-gradient(circle,rgba(96,165,250,.18),transparent 70%);
+  filter:blur(22px);pointer-events:none;
+  animation:glowPulse 6s ease-in-out infinite;
+}
+
+.form-box{
+  position:relative;z-index:1;
+  width:100%;max-width:350px;
+  background:var(--panel);
+  border:1px solid rgba(255,255,255,.94);
+  border-radius:22px;padding:22px 24px 18px;
+  box-shadow:0 20px 56px rgba(15,23,42,.10);
+  backdrop-filter:blur(20px);
+  flex-shrink:0;
+}
+
+.form-head-label{font-size:.62rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--blue);margin-bottom:6px}
+.form-title{font-family:'Space Grotesk',sans-serif;font-size:1.3rem;font-weight:700;letter-spacing:-.03em;color:var(--text);margin-bottom:3px}
+.form-sub{font-size:.76rem;color:var(--soft);line-height:1.45;font-weight:500;margin-bottom:14px}
+
+/* TABS — from original */
+.tabs{
+  display:grid;grid-template-columns:1fr 1fr;
+  padding:5px;gap:5px;border-radius:14px;
+  background:rgba(241,245,249,.95);border:1px solid var(--line);
+  position:relative;margin-bottom:14px;
+}
+.tb{
+  padding:8px;border:none;border-radius:10px;
+  background:transparent;color:var(--soft);
+  font-family:'Manrope',sans-serif;font-size:.8rem;font-weight:700;cursor:none;
+  position:relative;z-index:1;transition:color .25s;letter-spacing:.02em;
+}
+.tb.on{color:#fff}
+.t-slide{
+  position:absolute;top:5px;left:5px;
+  width:calc(50% - 7.5px);height:calc(100% - 10px);
+  background:linear-gradient(135deg,var(--blue-lt),var(--blue));
+  border-radius:10px;
+  box-shadow:0 8px 20px rgba(37,99,235,.25);
+  transition:transform .4s cubic-bezier(.22,1,.36,1);pointer-events:none;
+}
+
+/* FORMS */
+.form-wrap{position:relative}
+.fv{position:absolute;top:0;left:0;width:100%;opacity:0;transform:translateX(16px) scale(.99);pointer-events:none;transition:opacity .38s,transform .38s}
+.fv.on{position:relative;opacity:1;transform:none;pointer-events:auto}
+
+.field{margin-bottom:10px}
+.f-lbl{display:block;font-size:.7rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text);margin-bottom:6px}
+.f-wrap{position:relative}
+.f-wrap svg{position:absolute;left:13px;top:50%;transform:translateY(-50%);opacity:.3;pointer-events:none;transition:opacity .2s;color:var(--blue)}
+.f-wrap:focus-within svg{opacity:.75}
+input[type=text],input[type=email],input[type=password]{
+  width:100%;padding:10px 14px 10px 38px;
+  background:#fff;border:1px solid rgba(226,232,240,1);
+  border-radius:12px;color:var(--text);
+  font-family:'Manrope',sans-serif;font-size:.875rem;font-weight:500;outline:none;
+  box-shadow:inset 0 2px 4px rgba(15,23,42,.02);
+  transition:border-color .25s,box-shadow .25s,transform .25s;
+}
+input::placeholder{color:#94a3b8}
+input:focus{
+  border-color:var(--blue-lt);
+  box-shadow:0 0 0 4px rgba(56,189,248,.14),inset 0 2px 4px rgba(15,23,42,.02);
+  transform:translateY(-1px);
+}
+
+/* underline bar — from original */
+.f-bar{display:block;height:2px;width:0;border-radius:999px;background:linear-gradient(90deg,var(--blue-ac),var(--blue));transition:width .32s ease;margin-top:3px}
+input:focus~.f-bar,input:valid~.f-bar{width:100%}
+
+.row{display:flex;align-items:center;justify-content:space-between;margin:8px 0}
+.chk{display:flex;align-items:center;gap:7px;cursor:none}
+.chk input{width:15px;height:15px;padding:0;accent-color:var(--blue)}
+.chk span{font-size:.78rem;color:var(--soft);font-weight:500}
+.fgt{font-size:.78rem;color:var(--blue);text-decoration:none;font-weight:700;transition:color .2s}
+.fgt:hover{color:var(--blue-dk)}
+
+/* BUTTON — gradientFlow from original */
+.btn{
+  width:100%;padding:11px;border:none;border-radius:13px;
+  background:linear-gradient(135deg,var(--blue),var(--blue-dk));
+  background-size:200% 200%;
+  color:#fff;font-family:'Manrope',sans-serif;font-size:.9rem;font-weight:800;cursor:none;
+  letter-spacing:.02em;position:relative;overflow:hidden;
+  box-shadow:0 12px 28px rgba(37,99,235,.30);
+  transition:transform .25s,box-shadow .25s;
+  animation:gradientFlow 6s ease infinite;
+}
+.btn::before{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(255,255,255,.12),transparent);pointer-events:none}
+/* shine sweep from original */
+.btn::after{
+  content:'';position:absolute;
+  top:-50%;left:-80%;width:50%;height:200%;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.18),transparent);
+  transform:skewX(-20deg);
+  animation:shineSweep 4s linear infinite;
+}
+.btn:hover{transform:translateY(-2px);box-shadow:0 18px 40px rgba(37,99,235,.40)}
+.btn:active{transform:none}
+
+/* TRUST BAR — from original */
+.trust-bar{margin-top:10px}
+.t-track{height:5px;border-radius:999px;background:#e2e8f0;overflow:hidden;position:relative}
+.t-track::before{
+  content:'';position:absolute;inset:0;width:72%;
+  border-radius:inherit;
+  background:linear-gradient(90deg,var(--blue),var(--blue-ac));
+  animation:loadBar 3.2s ease-in-out infinite;
+}
+.t-label{display:block;margin-top:7px;font-size:.7rem;color:var(--soft);font-weight:500}
+
+/* DIVIDER */
+.div-line{
+  display:flex;align-items:center;gap:10px;
+  margin:10px 0;color:var(--soft);font-size:.66rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+}
+.div-line::before,.div-line::after{content:'';flex:1;height:1px;background:rgba(226,232,240,1)}
+
+/* SSO */
+.sso{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.sb{
+  padding:8px;border-radius:10px;
+  border:1px solid var(--line);background:#fff;
+  color:var(--soft);font-family:'Manrope',sans-serif;font-size:.75rem;font-weight:700;cursor:none;text-align:center;
+  box-shadow:0 2px 8px rgba(15,23,42,.03);
+  transition:border-color .22s,background .22s,color .22s,transform .22s,box-shadow .22s;
+}
+.sb:hover{border-color:var(--blue-lt);background:#f0f6ff;color:var(--blue);transform:translateY(-2px);box-shadow:var(--shadow-s)}
+
+/* ── ANIMATIONS ── */
+@keyframes slideDown{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:none}}
+@keyframes riseUp{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
+@keyframes slideIn{from{opacity:0;transform:translateX(22px)}to{opacity:1;transform:none}}
+@keyframes blobFloat{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(20px,26px) scale(1.07)}}
+@keyframes floatCard{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+@keyframes cardBreathe{
+  0%,100%{box-shadow:0 4px 16px rgba(37,99,235,.08);transform:translateY(0)}
+  50%{box-shadow:0 12px 28px rgba(37,99,235,.15);transform:translateY(-3px)}
+}
+@keyframes shinePill{
+  0%,100%{box-shadow:0 2px 10px rgba(15,23,42,.04)}
+  50%{box-shadow:0 4px 18px rgba(37,99,235,.12)}
+}
+@keyframes livePulse{
+  0%,100%{box-shadow:0 0 0 3px rgba(34,197,94,.2)}
+  50%{box-shadow:0 0 0 6px rgba(34,197,94,.1)}
+}
+@keyframes glowPulse{
+  0%,100%{opacity:.6}50%{opacity:1}
+}
+@keyframes gradientFlow{
+  0%,100%{background-position:0% 50%}
+  50%{background-position:100% 50%}
+}
+@keyframes loadBar{
+  0%,100%{transform:translateX(-8%);width:55%}
+  50%{transform:translateX(20%);width:74%}
+}
+@keyframes shineSweep{
+  from{left:-80%}to{left:160%}
+}
+@keyframes gridHue{
+  0%{filter:hue-rotate(0deg) saturate(1.2)}
+  33%{filter:hue-rotate(30deg) saturate(1.4)}
+  66%{filter:hue-rotate(-20deg) saturate(1.3)}
+  100%{filter:hue-rotate(0deg) saturate(1.2)}
+}
+
+/* ── RESPONSIVE ── */
+@media(max-width:960px){
+  .page{grid-template-columns:1fr;grid-template-rows:58px 1fr 1fr}
+  .left{padding:18px 28px;gap:13px}
+  .right{border-left:none;border-top:1px solid var(--line-b);padding:16px 28px}
+  .nav-links{display:none}
+  h1{font-size:1.85rem}
+  .live-card{display:none}
+  .trust-pill{display:none}
+  .desc{max-width:100%}
+}
+@media(max-width:560px){
+  nav{padding:0 16px}
+  .left{padding:12px 16px;gap:10px}
+  .right{padding:12px 16px}
+  h1{font-size:1.5rem}
+  .metrics{max-width:100%}
+  .form-box{padding:20px 16px 16px;border-radius:18px}
+  .badges{gap:5px}
+  .badge{font-size:.68rem;padding:5px 10px}
+  .blob-1,.blob-2{display:none}
+}
+</style>
+</head>
+<body>
+
+<div id="cur"></div>
+
+<!-- ambient blobs (vivid multi-color) -->
+<div class="blob blob-1"></div>
+<div class="blob blob-2"></div>
+<div class="blob blob-3"></div>
+<div class="blob blob-4"></div>
+<div class="grid"></div>
+
+<!-- 3D canvas -->
+<canvas id="canvas3d"></canvas>
+
+<div class="page">
+
+  <!-- NAV -->
+  <nav>
+    <div class="logo">
+      <div class="logo-box">
+        <img src="logo.jpg" alt="Ved Logistics logo">
+      </div>
+      <div class="logo-name">
+        Ved Logistics
+        <small>Enterprise Portal</small>
+      </div>
+    </div>
+
+    <div class="nav-links">
+      <a href="#">Track Parcel</a>
+      <a href="#">Fleet</a>
+      <a href="#">Dispatch</a>
+      <a href="#">Analytics</a>
+    </div>
+
+    <div class="nav-right">
+      <div class="live-dot"></div>
+      System Online
+    </div>
+  </nav>
+
+  <!-- LEFT -->
+  <section class="left">
+    <div class="eyebrow">🚚 Parcel Delivery Network · India</div>
+
+    <h1>Reliable logistics<br>for <em>every shipment.</em></h1>
+
+    <p class="desc">Ved Logistics helps businesses move parcels, documents, and freight with a secure workflow built for dispatch, tracking, and team access.</p>
+
+    <div class="metrics">
+      <div class="metric">
+        <div class="mv">99.9<span>%</span></div>
+        <div class="ml">On-Time</div>
+      </div>
+      <div class="metric">
+        <div class="mv">24<span>/7</span></div>
+        <div class="ml">Support</div>
+      </div>
+      <div class="metric">
+        <div class="mv">12<span>K+</span></div>
+        <div class="ml">Parcels</div>
+      </div>
+    </div>
+
+    <div class="trust-pill">
+      <i></i>
+      <span>Built for deliveries, tracking, and team operations</span>
+    </div>
+
+    <div class="badges">
+      <span class="badge">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        End-to-End Encrypted
+      </span>
+      <span class="badge">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+        Real-Time Tracking
+      </span>
+      <span class="badge">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+        Team Operations
+      </span>
+      <span class="badge">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/></svg>
+        Multi-Device
+      </span>
+    </div>
+
+    <div class="live-card">
+      <div class="live-ic">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+      </div>
+      <div>
+        <div class="live-title">VL-20482 — In Transit</div>
+        <div class="live-sub">ETA 2h 14m · Jodhpur → Jaipur</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FORM -->
+  <section class="right">
+    <div class="form-box">
+      <div class="form-head-label">Welcome to Ved Logistics</div>
+      <h2 class="form-title">Delivery Portal Access</h2>
+      <p class="form-sub">Sign in to manage dispatch, tracking &amp; team operations.</p>
+
+      <div class="tabs">
+        <button class="tb on" data-t="lf">Login</button>
+        <button class="tb" data-t="rf">Register</button>
+        <div class="t-slide" id="ts"></div>
+      </div>
+
+      <div class="form-wrap">
+
+        <!-- LOGIN -->
+        <div class="fv on" id="lf">
+          <div class="field">
+            <label class="f-lbl">Company Email</label>
+            <div class="f-wrap">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+              <input type="email" placeholder="name@vedlogistics.com" autocomplete="email" required>
+              <span class="f-bar"></span>
+            </div>
+          </div>
+          <div class="field">
+            <label class="f-lbl">Password</label>
+            <div class="f-wrap">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              <input type="password" placeholder="Enter secure password" autocomplete="current-password" required>
+              <span class="f-bar"></span>
+            </div>
+          </div>
+          <div class="row">
+            <label class="chk"><input type="checkbox"><span>Remember me</span></label>
+            <a href="#" class="fgt">Forgot password?</a>
+          </div>
+          <button class="btn" type="button">Access Workspace</button>
+          <div class="trust-bar">
+            <div class="t-track"></div>
+            <span class="t-label">🔒 Security verified · Encrypted connection</span>
+          </div>
+        </div>
+
+        <!-- REGISTER -->
+        <div class="fv" id="rf">
+          <div class="field">
+            <label class="f-lbl">Full Name</label>
+            <div class="f-wrap">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              <input type="text" placeholder="Enter full name" autocomplete="name" required>
+              <span class="f-bar"></span>
+            </div>
+          </div>
+          <div class="field">
+            <label class="f-lbl">Work Email</label>
+            <div class="f-wrap">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+              <input type="email" placeholder="team@vedlogistics.com" autocomplete="email" required>
+              <span class="f-bar"></span>
+            </div>
+          </div>
+          <div class="field">
+            <label class="f-lbl">Password</label>
+            <div class="f-wrap">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              <input type="password" placeholder="Create password" autocomplete="new-password" required>
+              <span class="f-bar"></span>
+            </div>
+          </div>
+          <div class="field">
+            <label class="f-lbl">Department</label>
+            <div class="f-wrap">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+              <input type="text" placeholder="Dispatch, HR, Sales…" autocomplete="organization-title" required>
+              <span class="f-bar"></span>
+            </div>
+          </div>
+          <button class="btn" type="button">Register Account</button>
+        </div>
+
+      </div>
+
+      <div class="div-line">Alternative sign-in</div>
+      <div class="sso">
+        <button class="sb">Google</button>
+        <button class="sb">Microsoft</button>
+        <button class="sb">SSO</button>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- Three.js — light-theme 3D: soft blue wireframe globe -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ── CURSOR ── */
+const cur=document.getElementById('cur');
+let mx=window.innerWidth/2,my=window.innerHeight/2;
+document.addEventListener('mousemove',e=>{
+  mx=e.clientX;my=e.clientY;
+  cur.style.left=mx+'px';cur.style.top=my+'px';
+});
+document.querySelectorAll('button,a,input,label,.tb,.sb,.chk').forEach(el=>{
+  el.addEventListener('mouseenter',()=>cur.classList.add('big'));
+  el.addEventListener('mouseleave',()=>cur.classList.remove('big'));
+});
+
+/* ── THREE.JS — light palette ── */
+const cv=document.getElementById('canvas3d');
+const W=()=>window.innerWidth,H=()=>window.innerHeight;
+const renderer=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(W(),H());
+renderer.setClearColor(0xffffff,0);
+
+const scene=new THREE.Scene();
+// very light fog matching the white/blue background
+scene.fog=new THREE.FogExp2(0xf3f6fb,0.022);
+
+const camera=new THREE.PerspectiveCamera(48,W()/H(),.1,200);
+camera.position.z=28;
+
+/* Vivid multi-color lights */
+scene.add(new THREE.AmbientLight(0xe0e7ff,5));
+[
+  [0x6366f1,[14,-4,8],35],   // indigo
+  [0x06b6d4,[-12,10,5],28],  // cyan/teal
+  [0xa855f7,[0,8,-6],22],    // purple
+  [0xf59e0b,[8,-8,-4],16],   // amber accent
+  [0x3b82f6,[-6,-6,10],20],  // blue
+].forEach(([c,p,i])=>{
+  const l=new THREE.PointLight(c,i,90);l.position.set(...p);scene.add(l);
+});
+
+/* Central sphere — iridescent glass */
+const cGeo=new THREE.IcosahedronGeometry(5,1);
+const cMat=new THREE.MeshPhongMaterial({
+  color:0xc7d2fe,emissive:0x818cf8,emissiveIntensity:.35,
+  transparent:true,opacity:.38,shininess:140,
+});
+const cMesh=new THREE.Mesh(cGeo,cMat);
+scene.add(cMesh);
+
+/* Vibrant wireframe shell */
+const wMesh=new THREE.Mesh(
+  new THREE.IcosahedronGeometry(5.1,1),
+  new THREE.MeshBasicMaterial({color:0x818cf8,wireframe:true,transparent:true,opacity:.22})
+);
+scene.add(wMesh);
+const lineMaterials=[wMesh.material];
+
+/* Rings — vivid multi-color */
+const rA=new THREE.Mesh(
+  new THREE.TorusGeometry(7,.05,8,120),
+  new THREE.MeshBasicMaterial({color:0x6366f1,transparent:true,opacity:.28})
+);
+rA.rotation.x=Math.PI/2;scene.add(rA);
+lineMaterials.push(rA.material);
+
+const rB=new THREE.Mesh(
+  new THREE.TorusGeometry(8.8,.04,8,120),
+  new THREE.MeshBasicMaterial({color:0x06b6d4,transparent:true,opacity:.20})
+);
+rB.rotation.x=1.0;rB.rotation.z=.35;scene.add(rB);
+lineMaterials.push(rB.material);
+
+const rC=new THREE.Mesh(
+  new THREE.TorusGeometry(10.5,.03,8,100),
+  new THREE.MeshBasicMaterial({color:0xa855f7,transparent:true,opacity:.14})
+);
+rC.rotation.x=0.6;rC.rotation.z=-.5;scene.add(rC);
+lineMaterials.push(rC.material);
+
+/* Orbiting nodes — vivid multi-color */
+const orbs=[];
+[
+  {r:7.2,sp:.48,ph:0,  tilt:.3, c:0x6366f1,s:.26},  // indigo
+  {r:9,  sp:.30,ph:2,  tilt:.8, c:0x06b6d4,s:.30},  // teal
+  {r:11, sp:.19,ph:4,  tilt:-.4,c:0xa855f7,s:.20},  // purple
+  {r:6.5,sp:.58,ph:1,  tilt:1.1,c:0xf59e0b,s:.18},  // amber
+  {r:10, sp:.40,ph:3,  tilt:-.6,c:0x3b82f6,s:.22},  // blue
+  {r:13, sp:.14,ph:5,  tilt:.6, c:0x06b6d4,s:.32},  // teal
+  {r:8,  sp:.36,ph:5.5,tilt:-.9,c:0xec4899,s:.16},  // pink
+  {r:12, sp:.22,ph:1.5,tilt:.5, c:0x10b981,s:.20},  // emerald
+].forEach(d=>{
+  const pivot=new THREE.Object3D();
+  pivot.rotation.x=d.tilt;pivot.rotation.z=d.ph*.4;
+  const orbitLineMat=new THREE.MeshBasicMaterial({color:d.c,transparent:true,opacity:.14});
+  pivot.add(new THREE.Mesh(
+    new THREE.TorusGeometry(d.r,.02,6,100),
+    orbitLineMat
+  ));
+  lineMaterials.push(orbitLineMat);
+  const n=new THREE.Mesh(
+    new THREE.SphereGeometry(d.s,12,12),
+    new THREE.MeshBasicMaterial({color:d.c,transparent:true,opacity:.88})
+  );
+  n.position.x=d.r;pivot.add(n);
+  /* glow halo around each node */
+  const glow=new THREE.Mesh(
+    new THREE.SphereGeometry(d.s*2.5,12,12),
+    new THREE.MeshBasicMaterial({color:d.c,transparent:true,opacity:.12})
+  );
+  glow.position.x=d.r;pivot.add(glow);
+  scene.add(pivot);
+  orbs.push({pivot,sp:d.sp,ph:d.ph});
+});
+
+/* Particles — vivid multi-color constellation */
+const N=1600,pG=new THREE.BufferGeometry();
+const pp=new Float32Array(N*3),pc=new Float32Array(N*3);
+const palette=[
+  [.39,.40,.95],  // indigo
+  [.02,.71,.82],  // teal
+  [.66,.33,.97],  // purple
+  [.96,.62,.04],  // amber
+  [.23,.51,.96],  // blue
+  [.93,.29,.60],  // pink
+  [.06,.73,.51],  // emerald
+  [.30,.72,1.0],  // sky
+];
+for(let i=0;i<N;i++){
+  const th=Math.random()*Math.PI*2,phi=Math.acos(Math.random()*2-1),r=10+Math.random()*50;
+  pp[i*3]=r*Math.sin(phi)*Math.cos(th);
+  pp[i*3+1]=r*Math.sin(phi)*Math.sin(th);
+  pp[i*3+2]=r*Math.cos(phi);
+  const c=palette[Math.floor(Math.random()*palette.length)];
+  pc[i*3]=c[0]; pc[i*3+1]=c[1]; pc[i*3+2]=c[2];
+}
+pG.setAttribute('position',new THREE.BufferAttribute(pp,3));
+pG.setAttribute('color',new THREE.BufferAttribute(pc,3));
+const pts=new THREE.Points(pG,new THREE.PointsMaterial({size:.12,vertexColors:true,transparent:true,opacity:.62}));
+scene.add(pts);
+
+/* Mouse parallax */
+let tx=0,ty=0,cx=0,cy=0;
+document.addEventListener('mousemove',e=>{tx=(e.clientX/W()-.5)*.5;ty=-(e.clientY/H()-.5)*.35;});
+
+window.addEventListener('resize',()=>{
+  camera.aspect=W()/H();camera.updateProjectionMatrix();renderer.setSize(W(),H());
+});
+
+const clk=new THREE.Clock();
+(function loop(){
+  requestAnimationFrame(loop);
+  const t=clk.getElapsedTime();
+
+  // Rainbow color-cycle across all line materials
+  lineMaterials.forEach((mat,idx)=>{
+    const hue=(t*0.04 + idx*0.08) % 1;
+    mat.color.setHSL(hue,0.75,0.55);
+  });
+  // Slowly shift sphere emissive hue
+  const sHue=(t*0.03) % 1;
+  cMat.emissive.setHSL(sHue,0.6,0.35);
+
+  cMesh.rotation.y=t*.07;cMesh.rotation.x=t*.035;
+  wMesh.rotation.y=t*.075;wMesh.rotation.x=t*.038;
+  rA.rotation.z=t*.09;
+  rB.rotation.y=t*.055;
+  rC.rotation.z=t*.042;rC.rotation.x=0.6+t*.032;
+  orbs.forEach(o=>o.pivot.rotation.y=t*o.sp+o.ph);
+  pts.rotation.y=t*.013;
+  cx+=(tx-cx)*.05;cy+=(ty-cy)*.05;
+  scene.rotation.x=cy;scene.rotation.y=cx;
+  camera.position.z=28+Math.sin(t*.2)*.7;
+  renderer.render(scene,camera);
+})();
+
+/* ── TABS ── */
+const slide=document.getElementById('ts');
+document.querySelectorAll('.tb').forEach((btn,i)=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.tb').forEach(b=>b.classList.remove('on'));
+    btn.classList.add('on');
+    slide.style.transform=`translateX(${i*100}%)`;
+    document.querySelectorAll('.fv').forEach(f=>f.classList.remove('on'));
+    document.getElementById(btn.dataset.t).classList.add('on');
+  });
+});
+</script>
+</body>
+</html>

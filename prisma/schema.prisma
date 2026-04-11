@@ -1,0 +1,151 @@
+// Ved Logistics — Database Schema
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Employee {
+  id            String   @id @default(cuid())
+  name          String
+  email         String   @unique
+  password      String
+  phone         String   @default("")
+  department    String   @default("General")
+  role          String   @default("employee") // admin | employee
+  employeeRole  String   @default("normal")   // normal | rider | admin
+  baseSalary    Float    @default(0)
+  joinDate      String   @default("")
+  status        String   @default("active")   // active | inactive
+  avatar        String   @default("")
+  bikeNumber    String   @default("")
+  notes         String   @default("")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  attendance     Attendance[]
+  parcels        Parcel[]       @relation("AssignedRider")
+  rides          Ride[]
+  advances       Advance[]
+  expenses       Expense[]
+  salaryPayments SalaryPayment[]
+}
+
+model Attendance {
+  id         String   @id @default(cuid())
+  employeeId String
+  date       String
+  checkIn    DateTime
+  checkOut   DateTime?
+  location   String   @default("Office")
+  note       String   @default("")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId])
+  @@index([date])
+}
+
+model Parcel {
+  id              String   @id @default(cuid())
+  parcelId        String   @unique
+  customerName    String
+  pickupAddress   String
+  deliveryAddress String
+  parcelType      String   @default("Document")
+  weight          String   @default("0")
+  assignedRider   String
+  status          String   @default("assigned") // assigned | picked_up | in_transit | delivered
+  note            String   @default("")
+  statusHistory   Json     @default("[]")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  rider Employee @relation("AssignedRider", fields: [assignedRider], references: [id], onDelete: Cascade)
+
+  @@index([assignedRider])
+  @@index([status])
+}
+
+model Ride {
+  id         String   @id @default(cuid())
+  riderId    String
+  date       String
+  startKm    Int
+  endKm      Int
+  distance   Int
+  startImage String?
+  endImage   String?
+  fuelCost   Float    @default(0)
+  status     String   @default("completed")
+  note       String   @default("")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  rider Employee @relation(fields: [riderId], references: [id], onDelete: Cascade)
+
+  @@index([riderId])
+}
+
+model Advance {
+  id           String   @id @default(cuid())
+  employeeId   String
+  amount       Float
+  reason       String   @default("")
+  status       String   @default("pending") // pending | approved | rejected
+  requestDate  DateTime @default(now())
+  approvedDate DateTime?
+  note         String   @default("")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId])
+}
+
+model Expense {
+  id           String   @id @default(cuid())
+  employeeId   String
+  type         String   @default("fuel")
+  amount       Float
+  description  String   @default("")
+  receiptImage String?
+  status       String   @default("pending") // pending | approved | rejected
+  requestDate  DateTime @default(now())
+  note         String   @default("")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId])
+}
+
+model SalaryPayment {
+  id          String   @id @default(cuid())
+  employeeId  String
+  amount      Float
+  paymentDate String
+  month       String
+  note        String   @default("")
+  paidBy      String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId])
+  @@index([month])
+}
+
+model Setting {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String
+}
