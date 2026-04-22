@@ -10,7 +10,19 @@ function api(path, opts = {}) {
   return fetch(path, {
     ...opts,
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...opts.headers },
-  }).then(r => r.json());
+  }).then(r => {
+    // Auto-logout on expired/invalid token
+    if (r.status === 401 || r.status === 403) {
+      const isAuthRoute = path.includes('/api/auth/');
+      if (!isAuthRoute) {
+        localStorage.removeItem('ved_token');
+        localStorage.removeItem('ved_user');
+        window.location.href = '/';
+        return { error: 'Session expired. Please login again.' };
+      }
+    }
+    return r.json();
+  });
 }
 
 // ── Format helpers ──
