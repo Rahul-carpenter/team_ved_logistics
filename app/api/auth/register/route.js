@@ -1,4 +1,4 @@
-import prisma from '@/lib/db';
+import { getDb, genId } from '@/lib/db';
 import bcrypt from 'bcryptjs';
 import { jsonResponse, errorResponse } from '@/lib/auth';
 
@@ -14,32 +14,40 @@ export async function POST(request) {
       return errorResponse('Password must be at least 4 characters');
     }
 
-    const existing = await prisma.employee.findUnique({ where: { email } });
+    const db = await getDb();
+    const existing = await db.collection('employees').findOne({ email });
     if (existing) {
       return errorResponse('Email already registered');
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
+    const now = new Date();
 
-    const employee = await prisma.employee.create({
-      data: {
-        name,
-        email,
-        password: hashedPassword,
-        phone: phone || '',
-        department: department || 'General',
-        role: 'employee',
-        employeeRole: 'normal',
-        baseSalary: 0,
-        joinDate: new Date().toISOString().split('T')[0],
-        status: 'active',
-      },
-    });
+    const employee = {
+      _id: genId(),
+      name,
+      email,
+      password: hashedPassword,
+      phone: phone || '',
+      department: department || 'General',
+      role: 'employee',
+      employeeRole: 'normal',
+      baseSalary: 0,
+      joinDate: now.toISOString().split('T')[0],
+      status: 'active',
+      avatar: '',
+      bikeNumber: '',
+      notes: '',
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    await db.collection('employees').insertOne(employee);
 
     return jsonResponse({
       success: true,
       user: {
-        id: employee.id,
+        id: employee._id,
         name: employee.name,
         email: employee.email,
       },

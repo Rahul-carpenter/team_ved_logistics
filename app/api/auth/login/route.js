@@ -1,4 +1,4 @@
-import prisma from '@/lib/db';
+import { getDb } from '@/lib/db';
 import bcrypt from 'bcryptjs';
 import { signToken, jsonResponse, errorResponse } from '@/lib/auth';
 
@@ -10,7 +10,8 @@ export async function POST(request) {
       return errorResponse('Email and password are required');
     }
 
-    const employee = await prisma.employee.findUnique({ where: { email } });
+    const db = await getDb();
+    const employee = await db.collection('employees').findOne({ email });
 
     if (!employee || employee.status !== 'active') {
       return errorResponse('Invalid email or password', 401);
@@ -22,7 +23,7 @@ export async function POST(request) {
     }
 
     const token = signToken({
-      id: employee.id,
+      id: employee._id,
       name: employee.name,
       email: employee.email,
       role: employee.role,
@@ -30,11 +31,11 @@ export async function POST(request) {
       department: employee.department,
     });
 
-    const response = jsonResponse({
+    return jsonResponse({
       success: true,
       token,
       user: {
-        id: employee.id,
+        id: employee._id,
         name: employee.name,
         email: employee.email,
         role: employee.role,
@@ -43,8 +44,6 @@ export async function POST(request) {
         avatar: employee.avatar,
       },
     });
-
-    return response;
   } catch (error) {
     console.error('Login error:', error);
     return errorResponse('Internal server error', 500);

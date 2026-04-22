@@ -1,4 +1,4 @@
-import prisma from '@/lib/db';
+import { getDb, genId } from '@/lib/db';
 import bcrypt from 'bcryptjs';
 import { getUserFromRequest, jsonResponse, errorResponse } from '@/lib/auth';
 
@@ -12,30 +12,29 @@ export async function GET(request) {
   const status = searchParams.get('status');
   const search = searchParams.get('search');
 
-  const where = {};
-  if (role) where.employeeRole = role;
-  if (status) where.status = status;
+  const db = await getDb();
+  const filter = {};
+  if (role) filter.employeeRole = role;
+  if (status) filter.status = status;
   if (search) {
-    where.OR = [
-      { name: { contains: search, mode: 'insensitive' } },
-      { email: { contains: search, mode: 'insensitive' } },
-      { department: { contains: search, mode: 'insensitive' } },
+    const regex = { $regex: search, $options: 'i' };
+    filter.$or = [
+      { name: regex },
+      { email: regex },
+      { department: regex },
     ];
   }
 
-  const employees = await prisma.employee.findMany({
-    where,
-    select: {
-      id: true, name: true, email: true, phone: true,
-      department: true, role: true, employeeRole: true,
-      baseSalary: true, joinDate: true, status: true,
-      avatar: true, bikeNumber: true, notes: true,
-      createdAt: true,
+  const employees = await db.collection('employees').find(filter, {
+    projection: {
+      password: 0, // Never send password
     },
-    orderBy: { createdAt: 'desc' },
-  });
+  }).sort({ createdAt: -1 }).toArray();
 
-  return jsonResponse({ employees });
+  // Map _id to id
+  const mapped = employees.map(({ _id, ...rest }) => ({ id: _id, ...rest }));
+
+  return jsonResponse({ employees: mapped });
 }
 
 // POST create employee
@@ -49,29 +48,36 @@ export async function POST(request) {
       return errorResponse('Name, email and password are required');
     }
 
-    const existing = await prisma.employee.findUnique({ where: { email: data.email } });
+    const db = await getDb();
+    const existing = await db.collection('employees').findOne({ email: data.email });
     if (existing) return errorResponse('Email already registered');
 
     const hashedPassword = await bcrypt.hash(data.password, 10);
+    const now = new Date();
 
-    const employee = await prisma.employee.create({
-      data: {
-        name: data.name,
-        email: data.email,
-        password: hashedPassword,
-        phone: data.phone || '',
-        department: data.department || 'General',
-        role: data.role || 'employee',
-        employeeRole: data.employeeRole || 'normal',
-        baseSalary: data.baseSalary || 0,
-        joinDate: data.joinDate || new Date().toISOString().split('T')[0],
-        status: data.status || 'active',
-        bikeNumber: data.bikeNumber || '',
-        notes: data.notes || '',
-      },
-    });
+    const employee = {
+      _id: genId(),
+      name: data.name,
+      email: data.email,
+      password: hashedPassword,
+      phone: data.phone || '',
+      department: data.department || 'General',
+      role: data.role || 'employee',
+      employeeRole: data.employeeRole || 'normal',
+      baseSalary: data.baseSalary || 0,
+      joinDate: data.joinDate || now.toISOString().split('T')[0],
+      status: data.status || 'active',
+      avatar: '',
+      bikeNumber: data.bikeNumber || '',
+      notes: data.notes || '',
+      createdAt: now,
+      updatedAt: now,
+    };
 
-    return jsonResponse({ success: true, employee: { ...employee, password: undefined } }, 201);
+    await db.collection('employees').insertOne(employee);
+
+    const { password: _, _id, ...rest } = employee;
+    return jsonResponse({ success: true, employee: { id: _id, ...rest } }, 201);
   } catch (error) {
     console.error('Create employee error:', error);
     return errorResponse('Internal server error', 500);
@@ -87,7 +93,8 @@ export async function PUT(request) {
     const data = await request.json();
     if (!data.id) return errorResponse('Employee ID required');
 
-    const updateData = {};
+    const db = await getDb();
+    const updateData = { updatedAt: new Date() };
     const allowedFields = ['name', 'email', 'phone', 'department', 'role', 'employeeRole', 'baseSalary', 'joinDate', 'status', 'bikeNumber', 'notes', 'avatar'];
     allowedFields.forEach(f => { if (data[f] !== undefined) updateData[f] = data[f]; });
 
@@ -95,19 +102,25 @@ export async function PUT(request) {
       updateData.password = await bcrypt.hash(data.password, 10);
     }
 
-    const employee = await prisma.employee.update({
-      where: { id: data.id },
-      data: updateData,
-    });
+    await db.collection('employees').updateOne(
+      { _id: data.id },
+      { $set: updateData }
+    );
 
-    return jsonResponse({ success: true, employee: { ...employee, password: undefined } });
+    const employee = await db.collection('employees').findOne(
+      { _id: data.id },
+      { projection: { password: 0 } }
+    );
+
+    const { _id, ...rest } = employee;
+    return jsonResponse({ success: true, employee: { id: _id, ...rest } });
   } catch (error) {
     console.error('Update employee error:', error);
     return errorResponse('Internal server error', 500);
   }
 }
 
-// DELETE employee
+// DELETE employee (cascade manual delete related docs)
 export async function DELETE(request) {
   const user = getUserFromRequest(request);
   if (!user || user.role !== 'admin') return errorResponse('Forbidden', 403);
@@ -116,6 +129,18 @@ export async function DELETE(request) {
   const id = searchParams.get('id');
   if (!id) return errorResponse('Employee ID required');
 
-  await prisma.employee.delete({ where: { id } });
+  const db = await getDb();
+
+  // Cascade delete all related records
+  await Promise.all([
+    db.collection('attendance').deleteMany({ employeeId: id }),
+    db.collection('daily_logs').deleteMany({ employeeId: id }),
+    db.collection('rides').deleteMany({ riderId: id }),
+    db.collection('advances').deleteMany({ employeeId: id }),
+    db.collection('expenses').deleteMany({ employeeId: id }),
+    db.collection('salary_payments').deleteMany({ employeeId: id }),
+    db.collection('employees').deleteOne({ _id: id }),
+  ]);
+
   return jsonResponse({ success: true });
 }
