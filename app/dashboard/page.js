@@ -69,6 +69,7 @@ export default function DashboardPage() {
   const [modalType, setModalType] = useState(null);
   const [modalData, setModalData] = useState({});
   const fileInputRef = useRef(null);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('ved_token');
@@ -85,7 +86,11 @@ export default function DashboardPage() {
       else if (p === 'attendance') setAttendance((await api('/api/attendance')).attendance || []);
       else if (p === 'daily_logs') setDailyLogs((await api('/api/daily_logs')).logs || []);
       else if (p === 'rides') setRides((await api('/api/rides')).rides || []);
-      else if (p === 'salary') setSalaryPayments((await api('/api/salary')).payments || []);
+      else if (p === 'salary') {
+        const [salRes, empRes] = await Promise.all([api('/api/salary'), api('/api/employees')]);
+        setSalaryPayments(salRes.payments || []);
+        setEmployees(empRes.employees || []);
+      }
       else if (p === 'advances') setAdvances((await api('/api/advances')).advances || []);
       else if (p === 'expenses') setExpenses((await api('/api/expenses')).expenses || []);
     } catch (err) {
@@ -122,13 +127,16 @@ export default function DashboardPage() {
     if (modalData.type === 'start' && !modalData.startKm) return showToast('Start KM required', 'error');
     if (modalData.type === 'end' && !modalData.endKm) return showToast('End KM required', 'error');
 
-    const payload = modalData.type === 'start' 
-      ? { startKm: parseInt(modalData.startKm), startPhoto: modalData.photo }
-      : { id: data.activeRide.id, endKm: parseInt(modalData.endKm), endPhoto: modalData.photo };
-      
-    const res = await api('/api/rides', { method: 'POST', body: JSON.stringify(payload) });
-    if (res.success) { showToast(`Ride ${modalData.type === 'start'?'started':'completed'}`); setModalType(null); loadPage('home'); }
-    else showToast(res.error, 'error');
+    setSubmitting(true);
+    try {
+      const payload = modalData.type === 'start' 
+        ? { startKm: parseInt(modalData.startKm), startPhoto: modalData.photo }
+        : { id: data.activeRide.id, endKm: parseInt(modalData.endKm), endPhoto: modalData.photo };
+        
+      const res = await api('/api/rides', { method: 'POST', body: JSON.stringify(payload) });
+      if (res.success) { showToast(`Ride ${modalData.type === 'start'?'started':'completed'}! Photo uploaded.`); setModalType(null); loadPage('home'); }
+      else showToast(res.error, 'error');
+    } finally { setSubmitting(false); }
   };
 
   const submitDailyLog = async (e) => {
@@ -217,7 +225,7 @@ export default function DashboardPage() {
                 <div className="stat-card" key={i}><div className="stat-value" style={{color: s.color}}>{s.value}</div><div className="stat-label">{s.label}</div></div>
               ))}
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+            <div className="dashboard-grid">
               <div className="card">
                 <div className="card-header"><div className="card-title">Recent Work Logs (Today)</div></div>
                 {data.recentLogs?.map(l => (
@@ -284,9 +292,9 @@ export default function DashboardPage() {
           <div className="card table-wrap">
             <table><thead><tr>{isAdmin&&<th>Employee</th>}<th>Date</th><th>Delivered</th><th>Picked Up</th><th>Store/Warehouse</th><th>Notes</th></tr></thead>
               <tbody>{dailyLogs.map(l => (
-                <tr key={l.id}>{isAdmin&&<td><strong>{l.employee?.name}</strong></td>}<td>{fmtDate(l.date)}</td>
-                  <td><span className="badge badge-delivered">{l.delivered}</span></td><td><span className="badge badge-assigned">{l.pickedUp}</span></td>
-                  <td>{l.store}</td><td>{l.note}</td>
+                <tr key={l.id}>{isAdmin&&<td data-label="Employee"><strong>{l.employee?.name}</strong></td>}<td data-label="Date">{fmtDate(l.date)}</td>
+                  <td data-label="Delivered"><span className="badge badge-delivered">{l.delivered}</span></td><td data-label="Picked Up"><span className="badge badge-assigned">{l.pickedUp}</span></td>
+                  <td data-label="Store">{l.store}</td><td data-label="Notes">{l.note}</td>
                 </tr>
               ))}</tbody>
             </table>
@@ -305,11 +313,11 @@ export default function DashboardPage() {
           <div className="card table-wrap" style={{overflowX: 'auto'}}>
             <table style={{minWidth:'700px'}}><thead><tr>{isAdmin&&<th>Rider</th>}<th>Date</th><th>Distance</th><th>Start Proof</th><th>End Proof</th><th>Status</th></tr></thead>
               <tbody>{rides.filter(r => (filterDate ? r.date === filterDate : true) && (filterName && isAdmin ? r.rider?.name?.toLowerCase().includes(filterName.toLowerCase()) : true)).map(r => (
-                <tr key={r.id}>{isAdmin&&<td><strong>{r.rider?.name}</strong></td>}<td>{fmtDate(r.date)}</td>
-                  <td>{r.distance ? `${r.distance} KM` : '—'}</td>
-                  <td>{r.startPhoto ? <img src={r.startPhoto} style={{width: 50, height: 30, objectFit:'cover', borderRadius:4, cursor:'zoom-in'}} onClick={()=>window.open(r.startPhoto)} alt=""/> : 'No photo'}</td>
-                  <td>{r.endPhoto ? <img src={r.endPhoto} style={{width: 50, height: 30, objectFit:'cover', borderRadius:4, cursor:'zoom-in'}} onClick={()=>window.open(r.endPhoto)} alt=""/> : '—'}</td>
-                  <td><span className={`badge badge-${r.status === 'completed' ? 'active' : 'pending'}`}>{r.status}</span></td>
+                <tr key={r.id}>{isAdmin&&<td data-label="Rider"><strong>{r.rider?.name}</strong></td>}<td data-label="Date">{fmtDate(r.date)}</td>
+                  <td data-label="Distance">{r.distance ? `${r.distance} KM` : '—'}</td>
+                  <td data-label="Start Proof">{r.startPhoto ? <img src={r.startPhoto} style={{width: 50, height: 30, objectFit:'cover', borderRadius:4, cursor:'zoom-in'}} onClick={()=>window.open(r.startPhoto)} alt=""/> : 'No photo'}</td>
+                  <td data-label="End Proof">{r.endPhoto ? <img src={r.endPhoto} style={{width: 50, height: 30, objectFit:'cover', borderRadius:4, cursor:'zoom-in'}} onClick={()=>window.open(r.endPhoto)} alt=""/> : '—'}</td>
+                  <td data-label="Status"><span className={`badge badge-${r.status === 'completed' ? 'active' : 'pending'}`}>{r.status}</span></td>
                 </tr>
               ))}</tbody>
             </table>
@@ -325,10 +333,10 @@ export default function DashboardPage() {
           <div className="card table-wrap" style={{overflowX: 'auto'}}>
             <table style={{minWidth:'700px'}}><thead><tr>{isAdmin&&<th>Employee</th>}<th>Date</th><th>Amount</th><th>Reason</th><th>Status</th>{isAdmin&&<th>Actions</th>}</tr></thead>
               <tbody>{advances.map(a => (
-                <tr key={a.id}>{isAdmin&&<td><strong>{a.employee?.name}</strong></td>}<td>{fmtDate(a.requestDate)}</td>
-                  <td>{fmtCurrency(a.amount)}</td><td>{a.reason}</td>
-                  <td><span className={`badge badge-${a.status}`}>{a.status}</span></td>
-                  {isAdmin && <td>
+                <tr key={a.id}>{isAdmin&&<td data-label="Employee"><strong>{a.employee?.name}</strong></td>}<td data-label="Date">{fmtDate(a.requestDate)}</td>
+                  <td data-label="Amount">{fmtCurrency(a.amount)}</td><td data-label="Reason">{a.reason}</td>
+                  <td data-label="Status"><span className={`badge badge-${a.status}`}>{a.status}</span></td>
+                  {isAdmin && <td data-label="Actions">
                     {a.status === 'pending' && <><button className="btn-primary btn-sm" onClick={()=>updateAdvanceStatus(a.id, 'approved')} style={{marginRight:5}}>Approve</button>
                     <button className="btn-danger btn-sm" onClick={()=>updateAdvanceStatus(a.id, 'rejected')}>Reject</button></>}
                   </td>}
@@ -347,11 +355,11 @@ export default function DashboardPage() {
           <div className="card table-wrap" style={{overflowX: 'auto'}}>
             <table style={{minWidth:'700px'}}><thead><tr>{isAdmin&&<th>Employee</th>}<th>Date</th><th>Type</th><th>Amount</th><th>Description</th><th>Status</th>{isAdmin&&<th>Actions</th>}</tr></thead>
               <tbody>{expenses.map(e => (
-                <tr key={e.id}>{isAdmin&&<td><strong>{e.employee?.name}</strong></td>}<td>{fmtDate(e.requestDate)}</td>
-                  <td><span style={{textTransform:'capitalize'}}>{e.type}</span></td>
-                  <td>{fmtCurrency(e.amount)}</td><td>{e.description}</td>
-                  <td><span className={`badge badge-${e.status}`}>{e.status}</span></td>
-                  {isAdmin && <td>
+                <tr key={e.id}>{isAdmin&&<td data-label="Employee"><strong>{e.employee?.name}</strong></td>}<td data-label="Date">{fmtDate(e.requestDate)}</td>
+                  <td data-label="Type"><span style={{textTransform:'capitalize'}}>{e.type}</span></td>
+                  <td data-label="Amount">{fmtCurrency(e.amount)}</td><td data-label="Desc">{e.description}</td>
+                  <td data-label="Status"><span className={`badge badge-${e.status}`}>{e.status}</span></td>
+                  {isAdmin && <td data-label="Actions">
                     {e.status === 'pending' && <><button className="btn-primary btn-sm" onClick={()=>updateExpenseStatus(e.id, 'approved')} style={{marginRight:5}}>Approve</button>
                     <button className="btn-danger btn-sm" onClick={()=>updateExpenseStatus(e.id, 'rejected')}>Reject</button></>}
                   </td>}
@@ -370,10 +378,10 @@ export default function DashboardPage() {
           <div className="card table-wrap" style={{overflowX: 'auto'}}>
             <table style={{minWidth:'700px'}}><thead><tr>{isAdmin&&<th>Employee</th>}<th>Month</th><th>Gross Salary</th><th>Deductions</th><th>Net Paid</th><th>Info</th></tr></thead>
               <tbody>{salaryPayments.map(p => (
-                <tr key={p.id}>{isAdmin&&<td><strong>{p.employee?.name}</strong></td>}<td>{p.month}</td>
-                  <td>{fmtCurrency(p.amount)}</td><td style={{color:'var(--rose)'}}>-{fmtCurrency(p.deductions)}</td>
-                  <td style={{color:'var(--emerald)', fontWeight:'bold'}}>{fmtCurrency(p.netAmount)}</td>
-                  <td style={{fontSize:'0.8rem', color:'var(--text-muted)'}}>{p.note}</td>
+                <tr key={p.id}>{isAdmin&&<td data-label="Employee"><strong>{p.employee?.name}</strong></td>}<td data-label="Month">{p.month}</td>
+                  <td data-label="Gross">{fmtCurrency(p.amount)}</td><td data-label="Deductions" style={{color:'var(--rose)'}}>-{fmtCurrency(p.deductions)}</td>
+                  <td data-label="Net Paid" style={{color:'var(--emerald)', fontWeight:'bold'}}>{fmtCurrency(p.netAmount)}</td>
+                  <td data-label="Info" style={{fontSize:'0.8rem', color:'var(--text-muted)'}}>{p.note}</td>
                 </tr>
               ))}</tbody>
             </table>
@@ -392,13 +400,13 @@ export default function DashboardPage() {
               <thead><tr><th>Name</th><th>Role</th><th>Salary</th>{isAdmin && <th>Actions</th>}</tr></thead>
               <tbody>{employees.map(e => (
                 <tr key={e.id}>
-                  <td>
+                  <td data-label="Name">
                     <div><strong>{e.name}</strong></div>
                     <div style={{fontSize:'0.8em', color:'var(--text-muted)'}}>{e.email}</div>
                   </td>
-                  <td><span className={`badge badge-${e.employeeRole === 'admin' ? 'active' : 'assigned'}`}>{e.employeeRole}</span></td>
-                  <td>{fmtCurrency(e.baseSalary)}</td>
-                  {isAdmin && <td>
+                  <td data-label="Role"><span className={`badge badge-${e.employeeRole === 'admin' ? 'active' : 'assigned'}`}>{e.employeeRole}</span></td>
+                  <td data-label="Salary">{fmtCurrency(e.baseSalary)}</td>
+                  {isAdmin && <td data-label="Actions">
                     {e.id !== user.id && <button className="btn-danger btn-sm" onClick={() => deleteEmployee(e.id, e.name)}>Delete</button>}
                   </td>}
                 </tr>
@@ -418,7 +426,7 @@ export default function DashboardPage() {
           )}
           <div className="card table-wrap" style={{ overflowX: 'auto' }}>
             <table style={{ minWidth: '500px' }}><thead><tr><th>Name</th><th>Date</th><th>In</th><th>Out</th></tr></thead>
-            <tbody>{attendance.filter(a => (filterDate ? a.date === filterDate : true) && (filterName && isAdmin ? a.employee?.name?.toLowerCase().includes(filterName.toLowerCase()) : true)).slice(0, 200).map(a=><tr key={a.id}><td>{a.employee?.name}</td><td>{a.date}</td><td>{fmtTime(a.checkIn)}</td><td>{fmtTime(a.checkOut)}</td></tr>)}</tbody></table>
+            <tbody>{attendance.filter(a => (filterDate ? a.date === filterDate : true) && (filterName && isAdmin ? a.employee?.name?.toLowerCase().includes(filterName.toLowerCase()) : true)).slice(0, 200).map(a=><tr key={a.id}><td data-label="Name">{a.employee?.name}</td><td data-label="Date">{a.date}</td><td data-label="In">{fmtTime(a.checkIn)}</td><td data-label="Out">{fmtTime(a.checkOut)}</td></tr>)}</tbody></table>
           </div>
         </>;
       
@@ -458,7 +466,7 @@ export default function DashboardPage() {
         <div className="modal-overlay open">
           <div className="modal-box">
             <div className="modal-header">
-              <h3>{modalType === 'ride' ? `${modalData.type==='start'?'Start':'End'} Ride` : modalType === 'log' ? 'Work Log' : 'Request Advance'}</h3>
+              <h3>{modalType === 'ride' ? `${modalData.type==='start'?'Start':'End'} Ride` : modalType === 'log' ? 'Work Log' : modalType === 'salary' ? 'Pay Salary' : modalType === 'expense' ? 'Add Expense' : modalType === 'employee' ? 'Add Team Member' : 'Request Advance'}</h3>
               <button className="modal-close" onClick={()=>setModalType(null)}>×</button>
             </div>
             <div className="modal-body">
@@ -473,7 +481,7 @@ export default function DashboardPage() {
                   <input type="file" accept="image/*" capture="environment" className="form-input" ref={fileInputRef} onChange={handlePhotoUpload} required />
                   {modalData.photo && <img src={modalData.photo} alt="Preview" style={{marginTop:10, maxHeight: 150, borderRadius:8}} />}
                 </div>
-                <button type="submit" className="btn-primary" style={{width:'100%'}}>Save Ride Log</button>
+                <button type="submit" className="btn-primary" style={{width:'100%'}} disabled={submitting}>{submitting ? 'Uploading photo…' : 'Save Ride Log'}</button>
               </form>}
               
               {/* LOG MODAL */}

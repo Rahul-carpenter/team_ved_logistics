@@ -1,5 +1,6 @@
 import { getDb, genId } from '@/lib/db';
 import { getUserFromRequest, jsonResponse, errorResponse } from '@/lib/auth';
+import { uploadToGoogleDrive } from '@/lib/google-drive';
 
 // GET rides
 export async function GET(request) {
@@ -41,6 +42,14 @@ export async function POST(request) {
     const now = new Date();
     const db = await getDb();
 
+    // Get employee info for naming files
+    const employee = await db.collection('employees').findOne(
+      { _id: user.id },
+      { projection: { name: 1 } }
+    );
+    const riderName = employee?.name || 'Unknown';
+    const timeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).replace(/[:\s]/g, '-');
+
     if (data.id) {
       // Complete existing ride
       const ride = await db.collection('rides').findOne({ _id: data.id });
@@ -50,10 +59,23 @@ export async function POST(request) {
 
       const distance = data.endKm ? (data.endKm - ride.startKm) : 0;
 
-      // Limit endPhoto size: strip if > 200KB to save MongoDB space
-      let endPhoto = data.endPhoto || null;
-      if (endPhoto && endPhoto.length > 200000) {
-        endPhoto = endPhoto.substring(0, 200000); // Truncate to ~200KB
+      // Upload end photo to Google Drive
+      let endPhoto = null;
+      let endPhotoMeta = null;
+      if (data.endPhoto) {
+        const fileName = `END_${riderName}_${today}_${timeStr}_${data.endKm}km.jpg`;
+        const driveResult = await uploadToGoogleDrive(data.endPhoto, fileName);
+        if (driveResult) {
+          endPhoto = driveResult.directLink;
+          endPhotoMeta = {
+            fileId: driveResult.fileId,
+            viewLink: driveResult.webViewLink,
+            thumbnailLink: driveResult.thumbnailLink,
+          };
+        } else {
+          // Fallback: store truncated base64 if Drive upload fails
+          endPhoto = data.endPhoto.length > 200000 ? data.endPhoto.substring(0, 200000) : data.endPhoto;
+        }
       }
 
       await db.collection('rides').updateOne(
@@ -62,6 +84,7 @@ export async function POST(request) {
           endKm: data.endKm,
           distance: distance > 0 ? distance : 0,
           endPhoto,
+          endPhotoMeta,
           status: 'completed',
           updatedAt: now,
         }}
@@ -80,10 +103,23 @@ export async function POST(request) {
       return errorResponse('You already have a started ride today');
     }
 
-    // Limit startPhoto size
-    let startPhoto = data.startPhoto || null;
-    if (startPhoto && startPhoto.length > 200000) {
-      startPhoto = startPhoto.substring(0, 200000);
+    // Upload start photo to Google Drive
+    let startPhoto = null;
+    let startPhotoMeta = null;
+    if (data.startPhoto) {
+      const fileName = `START_${riderName}_${today}_${timeStr}_${data.startKm}km.jpg`;
+      const driveResult = await uploadToGoogleDrive(data.startPhoto, fileName);
+      if (driveResult) {
+        startPhoto = driveResult.directLink;
+        startPhotoMeta = {
+          fileId: driveResult.fileId,
+          viewLink: driveResult.webViewLink,
+          thumbnailLink: driveResult.thumbnailLink,
+        };
+      } else {
+        // Fallback: store truncated base64 if Drive upload fails
+        startPhoto = data.startPhoto.length > 200000 ? data.startPhoto.substring(0, 200000) : data.startPhoto;
+      }
     }
 
     const ride = {
@@ -94,7 +130,9 @@ export async function POST(request) {
       endKm: 0,
       distance: 0,
       startPhoto,
+      startPhotoMeta,
       endPhoto: null,
+      endPhotoMeta: null,
       fuelCost: 0,
       status: 'started',
       note: '',
