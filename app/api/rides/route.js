@@ -11,9 +11,10 @@ export async function GET(request) {
   const filter = {};
   if (user.role !== 'admin') filter.riderId = user.id;
 
-  const rides = await db.collection('rides').aggregate([
+  let rides = await db.collection('rides').aggregate([
     { $match: filter },
     { $sort: { createdAt: -1 } },
+    { $limit: 100 },
     { $lookup: {
         from: 'employees',
         localField: 'riderId',
@@ -27,6 +28,13 @@ export async function GET(request) {
     }},
     { $project: { riderArr: 0, _id: 0 } },
   ]).toArray();
+
+  // Prevent 413 Payload Too Large by wiping out massive legacy base64 strings
+  rides = rides.map(r => {
+    if (r.startPhoto && r.startPhoto.length > 100000) r.startPhoto = null;
+    if (r.endPhoto && r.endPhoto.length > 100000) r.endPhoto = null;
+    return r;
+  });
 
   return jsonResponse({ rides });
 }
