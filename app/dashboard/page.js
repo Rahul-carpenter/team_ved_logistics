@@ -344,8 +344,8 @@ export default function DashboardPage() {
               <tbody>{rides.filter(r => (filterDate ? r.date === filterDate : true) && (filterName && isAdmin ? r.rider?.name?.toLowerCase().includes(filterName.toLowerCase()) : true)).map(r => (
                 <tr key={r.id}>{isAdmin&&<td data-label="Rider"><strong>{r.rider?.name}</strong></td>}<td data-label="Date">{fmtDate(r.date)}</td>
                   <td data-label="Distance">{r.distance ? `${r.distance} KM` : '—'}</td>
-                  <td data-label="Start Proof">{r.startPhoto ? <img src={r.startPhoto} style={{width: 50, height: 30, objectFit:'cover', borderRadius:4, cursor:'zoom-in'}} onClick={()=>window.open(r.startPhoto)} alt=""/> : 'No photo'}</td>
-                  <td data-label="End Proof">{r.endPhoto ? <img src={r.endPhoto} style={{width: 50, height: 30, objectFit:'cover', borderRadius:4, cursor:'zoom-in'}} onClick={()=>window.open(r.endPhoto)} alt=""/> : '—'}</td>
+                  <td data-label="Start Proof">{r.startPhoto ? <img src={r.startPhoto} style={{width: 50, height: 30, objectFit:'cover', borderRadius:4, cursor:'zoom-in'}} onClick={()=>{setModalData({photo: r.startPhoto}); setModalType('image');}} alt=""/> : 'No photo'}</td>
+                  <td data-label="End Proof">{r.endPhoto ? <img src={r.endPhoto} style={{width: 50, height: 30, objectFit:'cover', borderRadius:4, cursor:'zoom-in'}} onClick={()=>{setModalData({photo: r.endPhoto}); setModalType('image');}} alt=""/> : '—'}</td>
                   <td data-label="Status"><span className={`badge badge-${r.status === 'completed' ? 'active' : 'pending'}`}>{r.status}</span></td>
                 </tr>
               ))}</tbody>
@@ -495,10 +495,16 @@ export default function DashboardPage() {
         <div className="modal-overlay open">
           <div className="modal-box">
             <div className="modal-header">
-              <h3>{modalType === 'ride' ? `${modalData.type==='start'?'Start':'End'} Ride` : modalType === 'log' ? 'Work Log' : modalType === 'salary' ? 'Pay Salary' : modalType === 'expense' ? 'Add Expense' : modalType === 'employee' ? 'Add Team Member' : 'Request Advance'}</h3>
+              <h3>{modalType === 'ride' ? `${modalData.type==='start'?'Start':'End'} Ride` : modalType === 'log' ? 'Work Log' : modalType === 'salary' ? 'Pay Salary' : modalType === 'expense' ? 'Add Expense' : modalType === 'employee' ? 'Add Team Member' : modalType === 'image' ? 'Photo Proof' : 'Request Advance'}</h3>
               <button className="modal-close" onClick={()=>setModalType(null)}>×</button>
             </div>
             <div className="modal-body">
+              {/* IMAGE VIEWER MODAL */}
+              {modalType === 'image' && (
+                <div style={{ textAlign: 'center' }}>
+                  <img src={modalData.photo} alt="Proof" style={{ maxWidth: '100%', maxHeight: '70vh', borderRadius: '8px' }} />
+                </div>
+              )}
               {/* RIDE MODAL */}
               {modalType === 'ride' && <form onSubmit={submitRide}>
                 <div className="form-group">

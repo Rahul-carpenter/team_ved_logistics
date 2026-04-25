@@ -81,8 +81,7 @@ export async function POST(request) {
             thumbnailLink: driveResult.thumbnailLink,
           };
         } else {
-          // Fallback: store truncated base64 if Drive upload fails
-          endPhoto = data.endPhoto.length > 200000 ? data.endPhoto.substring(0, 200000) : data.endPhoto;
+          return errorResponse('Google Drive upload failed. Please try again.', 500);
         }
       }
 
@@ -125,8 +124,7 @@ export async function POST(request) {
           thumbnailLink: driveResult.thumbnailLink,
         };
       } else {
-        // Fallback: store truncated base64 if Drive upload fails
-        startPhoto = data.startPhoto.length > 200000 ? data.startPhoto.substring(0, 200000) : data.startPhoto;
+        return errorResponse('Google Drive upload failed. Please try again.', 500);
       }
     }
 
